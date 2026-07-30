@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Ledger</title>
+    <style>
+        /* Base & Constrained Layout */
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f0f2f5; color: #1e293b; }
+        
+        /* Navigation */
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .nav-bar h2 { margin: 0; font-weight: 800; font-size: 1.6em; color: #0f172a; letter-spacing: -0.5px; }
+        .btn-back { background-color: #fff; color: #334155; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-back:hover { background-color: #e2e8f0; color: #0f172a; }
+
+        /* The Master Display */
+        .master-card { 
+            background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); 
+            padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
+            text-align: center; color: white; margin-bottom: 25px;
+        }
+        .master-label { color: #94a3b8; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 10px; }
+        .master-balance { font-size: 3.5em; font-weight: 800; color: #10b981; margin: 0; letter-spacing: -2px; }
+        
+        /* Interaction Cards */
+        .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #3b82f6; }
+        
+        h3 { margin-top: 0; font-size: 1.15em; font-weight: 700; color: #0f172a; margin-bottom: 20px; }
+        label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        input, select { width: 100%; padding: 12px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; }
+        input:focus, select:focus { border-color: #3b82f6; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        
+        button.action-btn { background-color: #3b82f6; color: #fff; border: none; cursor: pointer; font-weight: 600; margin-top: 25px; padding: 14px; border-radius: 8px; width: 100%; font-size: 0.95em; transition: 0.2s; }
+        button.action-btn:hover { background-color: #2563eb; transform: translateY(-1px); }
+        button.danger-btn { background-color: #ef4444; }
+        button.danger-btn:hover { background-color: #dc2626; }
+
+        /* History Table */
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
+        .history-table th { text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 0.8em; }
+        .history-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+        .text-green { color: #10b981; font-weight: 600; }
+        .text-red { color: #ef4444; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-bar">
+        <h2>Master Ledger</h2>
+        <button onclick="window.location.href='dashboard.html'" class="btn-back">← Back to Floor</button>
+    </div>
+
+    <!-- THE LIVE LEDGER BALANCE -->
+    <div class="master-card">
+        <div class="master-label">Total Liquid Assets (Master Balance)</div>
+        <div class="master-balance">₹ <span id="ledger-balance">0.00</span></div>
+    </div>
+
+    <!-- MANUAL WITHDRAWAL / DEDUCTION -->
+    <div class="card" style="border-top-color: #ef4444;">
+        <h3>Deduct from Master Ledger</h3>
+        <p style="font-size: 0.85em; color: #64748b; margin-top: -10px; margin-bottom: 20px;">Use this to pay large vendor bills or withdraw owner funds without affecting the shop floor's daily register.</p>
+        
+        <label>Reason / Destination</label>
+        <select id="deduction-reason">
+            <option value="owner_withdrawal">Owner Withdrawal / Profit Take</option>
+            <option value="vendor_payment">Major Vendor Payment</option>
+            <option value="bank_deposit">Transfer to Bank Account</option>
+        </select>
+
+        <label>Amount (₹)</label>
+        <input type="number" id="deduction-amount" placeholder="0.00">
+
+        <button class="action-btn danger-btn" onclick="deductFromLedger()">Record Deduction</button>
+    </div>
+
+    <!-- AUTOMATED HISTORY LOG -->
+    <div class="card" style="border-top-color: #10b981;">
+        <h3>Ledger History</h3>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Reference</th>
+                    <th>Amount (₹)</th>
+                </tr>
+            </thead>
+            <tbody id="history-body">
+                <!-- HTML Placeholders - JS will populate this from Supabase -->
+                <tr>
+                    <td>Today, 9:00 PM</td>
+                    <td><span class="text-green">Auto-Deposit</span></td>
+                    <td>Daily Shop Closing</td>
+                    <td class="text-green">+ 12,500.00</td>
+                </tr>
+                <tr>
+                    <td>Yesterday, 2:00 PM</td>
+                    <td><span class="text-red">Deduction</span></td>
+                    <td>Vendor: Supply Co.</td>
+                    <td class="text-red">- 4,000.00</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="js/supabase-init.js"></script>
+    <script>
+        async function deductFromLedger() {
+            const reason = document.getElementById('deduction-reason').value;
+            const amount = document.getElementById('deduction-amount').value;
+
+            if(!amount || amount <= 0) return alert("Enter a valid amount to deduct.");
+            alert(`Ready to deduct ₹${amount} from the Master Ledger for: ${reason}.`);
+        }
+    </script>
+</body>
+</html>

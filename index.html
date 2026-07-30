@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop Login</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 400px; margin: 60px auto; padding: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #000; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+        .status-msg { color: dimgray; font-size: 0.9em; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Shop Login</h2>
+        <div id="login-status" class="status-msg">Enter credentials to access the terminal.</div>
+        <input type="email" id="email" placeholder="admin@firm1.com">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="handleLogin()">Login</button>
+    </div>
+
+    <!-- Load the Core Engine -->
+    <script src="js/supabase-init.js"></script>
+
+    <script>
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const statusDiv = document.getElementById('login-status');
+            
+            statusDiv.innerText = "Authenticating...";
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            
+            if (error) {
+                statusDiv.innerText = "Error: " + error.message;
+                statusDiv.style.color = "red";
+            } else {
+                // If successful, the browser will automatically go to the dashboard
+                window.location.href = 'dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>

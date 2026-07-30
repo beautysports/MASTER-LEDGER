@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Console & Vault</title>
+    <style>
+        /* Base & Constrained Layout */
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 550px; margin: 40px auto; padding: 20px; background: #f0f2f5; color: #1e293b; }
+        
+        /* Navigation */
+        .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .nav-bar h2 { margin: 0; font-weight: 800; font-size: 1.5em; color: #0f172a; letter-spacing: -0.5px; }
+        .btn-back { background-color: #fff; color: #334155; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-back:hover { background-color: #e2e8f0; color: #0f172a; }
+
+        /* Card Styling */
+        .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid; }
+        
+        /* THE VAULT STYLING (Exclusive Owner View) */
+        .card-vault { border-color: #fbbf24; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); color: white; }
+        .card-vault h3 { color: #f8fafc; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px; }
+        .vault-balance { font-size: 2.5em; font-weight: 800; color: #fbbf24; margin: 10px 0 20px 0; letter-spacing: -1px; }
+        .vault-label { color: #94a3b8; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .vault-input { background: #334155; border: 1px solid #475569; color: white; }
+        .vault-input:focus { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1); background: #1e293b; }
+        .vault-btn { background: #fbbf24; color: #0f172a; font-weight: 700; margin-top: 15px; }
+        .vault-btn:hover { background: #f59e0b; }
+
+        .card-vendor { border-color: #3b82f6; } 
+        .card-staff { border-color: #10b981; } 
+        .card-account { border-color: #6366f1; } 
+        
+        h3 { margin-top: 0; font-size: 1.15em; font-weight: 700; color: #0f172a; margin-bottom: 20px; }
+        label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Inputs */
+        input, select { width: 100%; padding: 12px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; transition: all 0.2s; }
+        input:focus, select:focus { border-color: #6366f1; background-color: #fff; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+        
+        /* Buttons */
+        button.action-btn { background-color: #0f172a; color: #fff; border: none; cursor: pointer; font-weight: 600; margin-top: 25px; padding: 14px; border-radius: 8px; width: 100%; transition: 0.2s; font-size: 0.95em; }
+        button.action-btn:hover { background-color: #334155; transform: translateY(-1px); }
+        
+        .hidden { display: none !important; }
+        .flex-row { display: flex; gap: 15px; }
+        .flex-row > div { flex: 1; }
+        .help-text { font-size: 0.75em; color: #94a3b8; margin-top: 6px; display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- TOP NAVIGATION -->
+    <div class="nav-bar">
+        <h2>Owner Console</h2>
+        <button onclick="window.location.href='dashboard.html'" class="btn-back">← Back to Floor</button>
+    </div>
+
+    <!-- THE MASTER VAULT (OWNER ONLY) -->
+    <div class="card card-vault">
+        <h3>Master Vault & Reserves</h3>
+        
+        <div class="vault-label">Total Secure Reserve</div>
+        <div class="vault-balance">₹ <span id="vault-display">0.00</span></div>
+
+        <div style="border-top: 1px solid #334155; padding-top: 15px; margin-top: 10px;">
+            <label style="color: #cbd5e1;">Sweep Cash to Vault</label>
+            <div class="flex-row" style="align-items: center; margin-top: 8px;">
+                <div style="flex: 2;">
+                    <input type="number" id="vault-deposit" class="vault-input" placeholder="Amount to move from Drawer (₹)">
+                </div>
+                <div style="flex: 1; margin-top: 0;">
+                    <button class="action-btn vault-btn" style="margin-top: 0;" onclick="depositToVault()">Transfer</button>
+                </div>
+            </div>
+            <span class="help-text" style="color: #64748b;">*This deducts from the shop floor's daily cash drawer and secures it here.</span>
+        </div>
+    </div>
+
+    <!-- ADD VENDOR -->
+    <div class="card card-vendor">
+        <h3>Add New Vendor</h3>
+        <label>Vendor Name / Company</label>
+        <input type="text" id="vendor-name" placeholder="e.g., Supply Co.">
+        <label>Contact Info / Details</label>
+        <input type="text" id="vendor-contact" placeholder="e.g., Phone number or GST">
+        <label>Opening Balance (₹)</label>
+        <input type="number" id="vendor-balance" placeholder="0.00" value="0">
+        <button class="action-btn" onclick="addVendor()">Save Vendor</button>
+    </div>
+
+    <!-- ADD STAFF -->
+    <div class="card card-staff">
+        <h3>Add New Staff Member</h3>
+        <label>Staff Name</label>
+        <input type="text" id="staff-name" placeholder="e.g., John Doe">
+        <div class="flex-row">
+            <div>
+                <label>Full Day Wage (₹)</label>
+                <input type="number" id="staff-full" placeholder="0.00">
+            </div>
+            <div>
+                <label>Half Day Wage (₹)</label>
+                <input type="number" id="staff-half" placeholder="0.00">
+            </div>
+        </div>
+        <button class="action-btn" onclick="addStaff()">Save Staff Member</button>
+    </div>
+
+    <!-- CORE ENGINE -->
+    <script src="js/supabase-init.js"></script>
+
+    <script>
+        async function depositToVault() {
+            const amount = document.getElementById('vault-deposit').value;
+            if(!amount || amount <= 0) return alert("Enter a valid amount to transfer.");
+            alert(`Ready to sweep ₹${amount} from Daily Drawer to Master Vault in Supabase.`);
+        }
+
+        async function addVendor() {
+            const name = document.getElementById('vendor-name').value;
+            const contact = document.getElementById('vendor-contact').value || 'None';
+            const balance = document.getElementById('vendor-balance').value || 0;
+            if(!name) return alert("Vendor name is required.");
+            alert(`Ready to push Vendor: ${name} to Supabase.`);
+        }
+
+        async function addStaff() {
+            const name = document.getElementById('staff-name').value;
+            const full = document.getElementById('staff-full').value || 0;
+            const half = document.getElementById('staff-half').value || 0;
+            if(!name) return alert("Staff name is required.");
+            alert(`Ready to push Staff: ${name} to Supabase.`);
+        }
+    </script>
+</body>
+</html>
