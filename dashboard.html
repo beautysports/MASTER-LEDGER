@@ -58,9 +58,9 @@
             <div style="text-transform: uppercase; font-size: 0.85em; font-weight: 700;">Expected Physical Cash</div>
             <div class="balance-text">₹ <span id="display-balance">0.00</span></div>
             <div class="summary-row">
-                <div><span style="display:block;">Cash In</span> <strong style="color:#10b981;">₹ 0.00</strong></div>
-                <div><span style="display:block;">Cash Out</span> <strong style="color:#ef4444;">₹ 0.00</strong></div>
-                <div><span style="display:block;">Total UPI</span> <strong style="color:#3b82f6;">₹ 0.00</strong></div>
+                <div><span style="display:block;">Cash In</span> <strong style="color:#10b981;">₹ <span id="display-income">0.00</span></strong></div>
+                <div><span style="display:block;">Cash Out</span> <strong style="color:#ef4444;">₹ <span id="display-expense">0.00</span></strong></div>
+                <div><span style="display:block;">Total UPI</span> <strong style="color:#3b82f6;">₹ <span id="display-upi">0.00</span></strong></div>
             </div>
         </div>
 
@@ -132,88 +132,124 @@
         </div>
     </main>
 
-    <script>
+<script>
         let currentShopId = null;
 
-        // 1. DYNAMIC CASCADING UI LOGIC
+        // 1. CASCADING UI LOGIC
         function toggleExpenseFields() {
             const category = document.getElementById('expense-category').value;
             const vendorGroup = document.getElementById('vendor-group');
             const staffGroup = document.getElementById('staff-group');
 
-            // Hide both first
             vendorGroup.classList.add('hidden');
             staffGroup.classList.add('hidden');
 
-            // Reveal based on selection
-            if (category === 'vendor') {
-                vendorGroup.classList.remove('hidden');
-            } else if (category === 'staff') {
-                staffGroup.classList.remove('hidden');
-            }
+            if (category === 'vendor') vendorGroup.classList.remove('hidden');
+            else if (category === 'staff') staffGroup.classList.remove('hidden');
         }
 
-        // 2. FETCH DATA FROM SUPABASE ON LOAD
+        // 2. INITIALIZE SYSTEM
         window.onload = () => {
             setTimeout(async () => {
-                // Get Shop ID
-                const { data: shopData, error: shopError } = await supabaseClient.from('shops').select('id').single();
-                
+                const { data: shopData } = await supabaseClient.from('shops').select('id').single();
                 if (shopData) {
                     currentShopId = shopData.id;
                     await loadDropdowns(currentShopId);
-                } else {
-                    console.error("Auth error or no shop found.", shopError);
+                    await calculateBalances(currentShopId);
                 }
             }, 500); 
         };
 
-        // 3. POPULATE THE DROPDOWNS
+        // 3. LOAD DROPDOWNS
         async function loadDropdowns(shopId) {
-            // Fetch Vendors
             const { data: vendors } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId);
             const vendorSelect = document.getElementById('vendor-select');
             vendorSelect.innerHTML = '<option value="none" selected disabled>Choose a Vendor...</option>';
-            if (vendors && vendors.length > 0) {
-                vendors.forEach(v => {
-                    vendorSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
-                });
-            } else {
-                vendorSelect.innerHTML = '<option disabled>No vendors found. Add in console.</option>';
-            }
+            if (vendors) vendors.forEach(v => vendorSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
 
-            // Fetch Staff
             const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
             const staffSelect = document.getElementById('staff-select');
             staffSelect.innerHTML = '<option value="none" selected disabled>Choose Staff Member...</option>';
-            if (staff && staff.length > 0) {
-                staff.forEach(s => {
-                    staffSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+            if (staff) staff.forEach(s => staffSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+        }
+
+        // 4. CALCULATE LIVE BALANCES
+        async function calculateBalances(shopId) {
+            const { data: txns } = await supabaseClient.from('daily_transactions').select('*').eq('shop_id', shopId);
+            
+            let cashIn = 0, cashOut = 0, totalUpi = 0;
+
+            if (txns) {
+                txns.forEach(txn => {
+                    const amt = parseFloat(txn.amount);
+                    if (txn.payment_method === 'UPI') {
+                        totalUpi += amt; 
+                        // Note: UPI doesn't affect the physical cash drawer
+                    } else if (txn.payment_method === 'CASH') {
+                        if (txn.transaction_type === 'INCOME') cashIn += amt;
+                        if (txn.transaction_type === 'EXPENSE') cashOut += amt;
+                    }
                 });
-            } else {
-                staffSelect.innerHTML = '<option disabled>No staff found. Add in console.</option>';
             }
+
+            const expectedCash = cashIn - cashOut;
+
+            document.getElementById('display-income').innerText = cashIn.toFixed(2);
+            document.getElementById('display-expense').innerText = cashOut.toFixed(2);
+            document.getElementById('display-upi').innerText = totalUpi.toFixed(2);
+            document.getElementById('display-balance').innerText = expectedCash.toFixed(2);
         }
 
-        // 4. PLACEHOLDER SUBMIT FUNCTIONS
+        // 5. SUBMIT INCOME
         async function submitIncome() { 
-            if(!currentShopId) return alert("System loading, please wait...");
-            const amt = document.getElementById('income-amount').value;
+            if(!currentShopId) return;
+            const category = document.getElementById('income-account').value;
             const method = document.getElementById('income-method').value;
-            if(!amt) return alert("Enter an amount");
-            alert(`Ready to log ₹${amt} Income via ${method}`); 
+            const amount = parseFloat(document.getElementById('income-amount').value);
+            
+            if(!amount || amount <= 0) return alert("Enter a valid amount.");
+
+            const { error } = await supabaseClient.from('daily_transactions').insert([{
+                shop_id: currentShopId, transaction_type: 'INCOME', category: category, payment_method: method, amount: amount
+            }]);
+
+            if (error) { alert("Error: " + error.message); return; }
+            
+            document.getElementById('income-amount').value = '';
+            calculateBalances(currentShopId);
         }
 
+        // 6. SUBMIT EXPENSE
         async function submitExpense() { 
-            if(!currentShopId) return alert("System loading, please wait...");
+            if(!currentShopId) return;
             const category = document.getElementById('expense-category').value;
-            const amt = document.getElementById('expense-amount').value;
             const method = document.getElementById('expense-method').value;
+            const amount = parseFloat(document.getElementById('expense-amount').value);
+            const note = document.getElementById('expense-note').value;
             
             if(category === 'none') return alert("Select an expense category.");
-            if(!amt) return alert("Enter an amount.");
-            
-            alert(`Ready to log ₹${amt} Expense via ${method} for ${category}.`); 
+            if(!amount || amount <= 0) return alert("Enter a valid amount.");
+
+            let vendor_id = null;
+            let staff_id = null;
+
+            if (category === 'vendor') {
+                vendor_id = document.getElementById('vendor-select').value;
+                if (vendor_id === 'none') return alert("Select a vendor.");
+            } else if (category === 'staff') {
+                staff_id = document.getElementById('staff-select').value;
+                if (staff_id === 'none') return alert("Select a staff member.");
+            }
+
+            const { error } = await supabaseClient.from('daily_transactions').insert([{
+                shop_id: currentShopId, transaction_type: 'EXPENSE', category: category, payment_method: method, amount: amount, reference_note: note, vendor_id: vendor_id, staff_id: staff_id
+            }]);
+
+            if (error) { alert("Error: " + error.message); return; }
+
+            document.getElementById('expense-amount').value = '';
+            document.getElementById('expense-note').value = '';
+            calculateBalances(currentShopId);
         }
     </script>
 </body>
