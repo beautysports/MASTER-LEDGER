@@ -7,26 +7,40 @@
     <!-- Core Engine must load BEFORE navbar -->
     <script src="supabase-init.js"></script>
     <style>
-        /* Only styles specific to the main content go here now */
-        body { margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #f0f2f5; color: #1e293b; display: flex; height: 100vh; }
+        /* Base Styling */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
         .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; }
         
-        .summary-box { background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-left: 5px solid #10b981; margin-bottom: 30px; text-align: center; }
-        .summary-row { display: flex; justify-content: space-around; font-size: 0.95em; color: #64748b; padding-top: 15px; border-top: 1px solid #f1f5f9; margin-top: 15px; }
-        .balance-text { font-size: 2.5em; font-weight: 800; margin: 5px 0; color: #10b981; }
+        /* Smooth Summary Box */
+        .summary-box { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border-left: 6px solid #10b981; margin-bottom: 30px; text-align: center; transition: transform 0.3s ease; }
+        .summary-box:hover { transform: translateY(-2px); }
+        .summary-row { display: flex; justify-content: space-around; font-size: 0.95em; color: #64748b; padding-top: 20px; border-top: 1px solid #f1f5f9; margin-top: 20px; }
+        .balance-text { font-size: 3em; font-weight: 800; margin: 10px 0; color: #10b981; letter-spacing: -1px; }
 
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-        .card { background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        /* Action Cards */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .card { background: white; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: all 0.3s ease; }
+        .card:hover { border-color: #cbd5e1; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .card-income { border-top: 4px solid #10b981; }
+        .card-expense { border-top: 4px solid #ef4444; }
         
-        h3 { margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
-        label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 20px; text-transform: uppercase; }
-        input, select { width: 100%; padding: 12px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; }
-        button.action-btn { background-color: #0f172a; color: #fff; border: none; cursor: pointer; font-weight: 600; margin-top: 25px; padding: 14px; border-radius: 8px; width: 100%; }
+        h3 { margin-top: 0; font-size: 1.2em; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }
+        label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 15px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; }
+        
+        /* Smooth Inputs */
+        input, select { width: 100%; padding: 14px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.95em; color: #0f172a; transition: all 0.2s ease; outline: none; }
+        input:focus, select:focus { border-color: #3b82f6; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        
+        button.action-btn { background-color: #0f172a; color: #fff; border: none; cursor: pointer; font-weight: 700; margin-top: 25px; padding: 15px; border-radius: 8px; width: 100%; font-size: 1em; transition: 0.2s ease; }
+        button.action-btn:hover { background-color: #334155; transform: translateY(-1px); }
         
         .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
         
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
         @media (max-width: 768px) {
-            body { flex-direction: column; }
+            body { flex-direction: column; overflow: auto; }
             .action-grid { grid-template-columns: 1fr; }
             .main-content { padding: 20px; }
         }
@@ -52,28 +66,155 @@
 
         <div class="action-grid">
             <!-- INCOME CARD -->
-            <div class="card">
+            <div class="card card-income">
                 <h3>Log Income</h3>
+                
+                <label>Income Source</label>
+                <select id="income-account">
+                    <option value="default">General Counter Sales</option>
+                    <!-- Future: Auto-populate other income accounts here -->
+                </select>
+
+                <label>Payment Method</label>
+                <select id="income-method">
+                    <option value="CASH">Cash (Drawer)</option>
+                    <option value="UPI">UPI / Bank Transfer</option>
+                </select>
+
                 <label>Amount (₹)</label>
                 <input type="number" id="income-amount" placeholder="0.00">
+                
                 <button class="action-btn" onclick="submitIncome()">Record Income</button>
             </div>
 
             <!-- EXPENSE CARD -->
-            <div class="card">
-                <h3>Log Expense</h3>
+            <div class="card card-expense">
+                <h3>Log Expense / Payout</h3>
+                
+                <label>Expense Category</label>
+                <select id="expense-category" onchange="toggleExpenseFields()">
+                    <option value="none" selected disabled>Select Category...</option>
+                    <option value="general">General Supply / Misc</option>
+                    <option value="vendor">Vendor Payout</option>
+                    <option value="staff">Staff Wage / Advance</option>
+                </select>
+
+                <!-- Dynamic Vendor Dropdown -->
+                <div id="vendor-group" class="hidden fade-in">
+                    <label>Select Vendor</label>
+                    <select id="vendor-select">
+                        <option value="">Loading vendors...</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic Staff Dropdown -->
+                <div id="staff-group" class="hidden fade-in">
+                    <label>Select Staff Member</label>
+                    <select id="staff-select">
+                        <option value="">Loading staff...</option>
+                    </select>
+                </div>
+
+                <label>Payment Method</label>
+                <select id="expense-method">
+                    <option value="CASH">Cash (Drawer)</option>
+                    <option value="UPI">UPI / Bank Transfer</option>
+                </select>
+
                 <label>Amount (₹)</label>
                 <input type="number" id="expense-amount" placeholder="0.00">
+                
+                <label>Note / Reference (Optional)</label>
+                <input type="text" id="expense-note" placeholder="e.g., Water cans, tea, bill #104">
+
                 <button class="action-btn" onclick="submitExpense()">Record Expense</button>
             </div>
         </div>
     </main>
 
     <script>
-        // Form logic goes here (wired in previous steps)
-        async function submitIncome() { alert("Ready"); }
-        async function submitExpense() { alert("Ready"); }
-        async function handleLogout() { await supabaseClient.auth.signOut(); window.location.href = 'index.html'; }
+        let currentShopId = null;
+
+        // 1. DYNAMIC CASCADING UI LOGIC
+        function toggleExpenseFields() {
+            const category = document.getElementById('expense-category').value;
+            const vendorGroup = document.getElementById('vendor-group');
+            const staffGroup = document.getElementById('staff-group');
+
+            // Hide both first
+            vendorGroup.classList.add('hidden');
+            staffGroup.classList.add('hidden');
+
+            // Reveal based on selection
+            if (category === 'vendor') {
+                vendorGroup.classList.remove('hidden');
+            } else if (category === 'staff') {
+                staffGroup.classList.remove('hidden');
+            }
+        }
+
+        // 2. FETCH DATA FROM SUPABASE ON LOAD
+        window.onload = () => {
+            setTimeout(async () => {
+                // Get Shop ID
+                const { data: shopData, error: shopError } = await supabaseClient.from('shops').select('id').single();
+                
+                if (shopData) {
+                    currentShopId = shopData.id;
+                    await loadDropdowns(currentShopId);
+                } else {
+                    console.error("Auth error or no shop found.", shopError);
+                }
+            }, 500); 
+        };
+
+        // 3. POPULATE THE DROPDOWNS
+        async function loadDropdowns(shopId) {
+            // Fetch Vendors
+            const { data: vendors } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId);
+            const vendorSelect = document.getElementById('vendor-select');
+            vendorSelect.innerHTML = '<option value="none" selected disabled>Choose a Vendor...</option>';
+            if (vendors && vendors.length > 0) {
+                vendors.forEach(v => {
+                    vendorSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+                });
+            } else {
+                vendorSelect.innerHTML = '<option disabled>No vendors found. Add in console.</option>';
+            }
+
+            // Fetch Staff
+            const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
+            const staffSelect = document.getElementById('staff-select');
+            staffSelect.innerHTML = '<option value="none" selected disabled>Choose Staff Member...</option>';
+            if (staff && staff.length > 0) {
+                staff.forEach(s => {
+                    staffSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+                });
+            } else {
+                staffSelect.innerHTML = '<option disabled>No staff found. Add in console.</option>';
+            }
+        }
+
+        // 4. PLACEHOLDER SUBMIT FUNCTIONS
+        async function submitIncome() { 
+            if(!currentShopId) return alert("System loading, please wait...");
+            const amt = document.getElementById('income-amount').value;
+            const method = document.getElementById('income-method').value;
+            if(!amt) return alert("Enter an amount");
+            alert(`Ready to log ₹${amt} Income via ${method}`); 
+        }
+
+        async function submitExpense() { 
+            if(!currentShopId) return alert("System loading, please wait...");
+            const category = document.getElementById('expense-category').value;
+            const amt = document.getElementById('expense-amount').value;
+            const method = document.getElementById('expense-method').value;
+            
+            if(category === 'none') return alert("Select an expense category.");
+            if(!amt) return alert("Enter an amount.");
+            
+            alert(`Ready to log ₹${amt} Expense via ${method} for ${category}.`); 
+        }
     </script>
 </body>
 </html>
