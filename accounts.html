@@ -119,15 +119,22 @@
     <script>
         let currentShopId = null;
 
-        // 1. Fetch Shop ID immediately on load
+        // 1. Fetch Shop ID with Error Catching
         window.onload = () => {
             setTimeout(async () => {
-                const { data } = await supabaseClient.from('shops').select('id, vault_balance').single();
-                if (data) {
+                // Let's ask Supabase for the shop, and catch any errors
+                const { data, error } = await supabaseClient.from('shops').select('id, vault_balance').single();
+                
+                if (error) {
+                    alert("SUPABASE ERROR: " + error.message);
+                    console.error(error);
+                } else if (data) {
                     currentShopId = data.id;
                     document.getElementById('vault-display').innerText = data.vault_balance || '0.00';
+                } else {
+                    alert("CRITICAL: No shop found in the database for your account.");
                 }
-            }, 500); 
+            }, 800); // Increased delay slightly to ensure auth is loaded
         };
 
         // 2. Vault Logic (UI Placeholder until Ledger history table is built)
