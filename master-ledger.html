@@ -4,38 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Ledger</title>
+    <script src="supabase-init.js"></script>
     <style>
-        /* Base & Constrained Layout */
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f0f2f5; color: #1e293b; }
+        /* Base & Sidebar Layout */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px 20px; }
+        .admin-container { max-width: 650px; margin: 0 auto; }
         
-        /* Navigation */
-        .nav-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .nav-bar h2 { margin: 0; font-weight: 800; font-size: 1.6em; color: #0f172a; letter-spacing: -0.5px; }
-        .btn-back { background-color: #fff; color: #334155; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-back:hover { background-color: #e2e8f0; color: #0f172a; }
-
         /* The Master Display */
         .master-card { 
             background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); 
-            padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
-            text-align: center; color: white; margin-bottom: 25px;
+            padding: 35px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            text-align: center; color: white; margin-bottom: 30px;
         }
         .master-label { color: #94a3b8; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 10px; }
         .master-balance { font-size: 3.5em; font-weight: 800; color: #10b981; margin: 0; letter-spacing: -2px; }
         
         /* Interaction Cards */
-        .card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #3b82f6; }
+        .card { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        .card-deduct { border-top: 4px solid #ef4444; }
+        .card-history { border-top: 4px solid #3b82f6; }
         
-        h3 { margin-top: 0; font-size: 1.15em; font-weight: 700; color: #0f172a; margin-bottom: 20px; }
+        h3 { margin-top: 0; font-size: 1.2em; font-weight: 700; color: #0f172a; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
         label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        input, select { width: 100%; padding: 12px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; }
-        input:focus, select:focus { border-color: #3b82f6; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        input, select { width: 100%; padding: 14px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; transition: 0.2s; }
+        input:focus, select:focus { border-color: #ef4444; background-color: #fff; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
         
-        button.action-btn { background-color: #3b82f6; color: #fff; border: none; cursor: pointer; font-weight: 600; margin-top: 25px; padding: 14px; border-radius: 8px; width: 100%; font-size: 0.95em; transition: 0.2s; }
-        button.action-btn:hover { background-color: #2563eb; transform: translateY(-1px); }
+        button.action-btn { color: #fff; border: none; cursor: pointer; font-weight: 700; margin-top: 25px; padding: 15px; border-radius: 8px; width: 100%; font-size: 1em; transition: 0.2s; }
         button.danger-btn { background-color: #ef4444; }
-        button.danger-btn:hover { background-color: #dc2626; }
+        button.danger-btn:hover { background-color: #dc2626; transform: translateY(-1px); }
+
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* History Table */
         .history-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
@@ -47,73 +49,143 @@
 </head>
 <body>
 
-    <div class="nav-bar">
-        <h2>Master Ledger</h2>
-        <button onclick="window.location.href='dashboard.html'" class="btn-back">← Back to Floor</button>
-    </div>
+    <!-- INJECT NAVBAR -->
+    <script src="navbar.js"></script>
 
-    <!-- THE LIVE LEDGER BALANCE -->
-    <div class="master-card">
-        <div class="master-label">Total Liquid Assets (Master Balance)</div>
-        <div class="master-balance">₹ <span id="ledger-balance">0.00</span></div>
-    </div>
+    <main class="main-content">
+        <div class="admin-container">
 
-    <!-- MANUAL WITHDRAWAL / DEDUCTION -->
-    <div class="card" style="border-top-color: #ef4444;">
-        <h3>Deduct from Master Ledger</h3>
-        <p style="font-size: 0.85em; color: #64748b; margin-top: -10px; margin-bottom: 20px;">Use this to pay large vendor bills or withdraw owner funds without affecting the shop floor's daily register.</p>
-        
-        <label>Reason / Destination</label>
-        <select id="deduction-reason">
-            <option value="owner_withdrawal">Owner Withdrawal / Profit Take</option>
-            <option value="vendor_payment">Major Vendor Payment</option>
-            <option value="bank_deposit">Transfer to Bank Account</option>
-        </select>
+            <!-- THE LIVE LEDGER BALANCE -->
+            <div class="master-card">
+                <div class="master-label">Total Liquid Assets (Master Balance)</div>
+                <div class="master-balance">₹ <span id="ledger-balance">0.00</span></div>
+            </div>
 
-        <label>Amount (₹)</label>
-        <input type="number" id="deduction-amount" placeholder="0.00">
+            <!-- MANUAL WITHDRAWAL / DEDUCTION -->
+            <div class="card card-deduct">
+                <h3>Deduct from Master Ledger</h3>
+                <p style="font-size: 0.85em; color: #64748b; margin-top: -15px; margin-bottom: 20px;">
+                    This bypasses the daily floor drawer. It will deduct directly from your total reserves and, if applicable, settle vendor balances.
+                </p>
+                
+                <label>Deduction Category</label>
+                <select id="deduction-reason" onchange="toggleLedgerFields()">
+                    <option value="none" selected disabled>Select Category...</option>
+                    <option value="vendor">Major Vendor Payment</option>
+                    <option value="drawings">Owner Drawings (Personal)</option>
+                    <option value="finance">Finances / Bank EMI</option>
+                    <option value="misc">Miscellaneous Reserve Deduction</option>
+                </select>
 
-        <button class="action-btn danger-btn" onclick="deductFromLedger()">Record Deduction</button>
-    </div>
+                <!-- Dynamic Vendor Dropdown (Only shows if Vendor is selected) -->
+                <div id="vendor-group" class="hidden fade-in">
+                    <label>Select Vendor to Settle</label>
+                    <select id="vendor-select">
+                        <option value="">Loading vendors...</option>
+                    </select>
+                </div>
 
-    <!-- AUTOMATED HISTORY LOG -->
-    <div class="card" style="border-top-color: #10b981;">
-        <h3>Ledger History</h3>
-        <table class="history-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Reference</th>
-                    <th>Amount (₹)</th>
-                </tr>
-            </thead>
-            <tbody id="history-body">
-                <!-- HTML Placeholders - JS will populate this from Supabase -->
-                <tr>
-                    <td>Today, 9:00 PM</td>
-                    <td><span class="text-green">Auto-Deposit</span></td>
-                    <td>Daily Shop Closing</td>
-                    <td class="text-green">+ 12,500.00</td>
-                </tr>
-                <tr>
-                    <td>Yesterday, 2:00 PM</td>
-                    <td><span class="text-red">Deduction</span></td>
-                    <td>Vendor: Supply Co.</td>
-                    <td class="text-red">- 4,000.00</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+                <label>Amount (₹)</label>
+                <input type="number" id="deduction-amount" placeholder="0.00">
 
-    <script src="js/supabase-init.js"></script>
+                <label>Reference Note</label>
+                <input type="text" id="deduction-note" placeholder="e.g., May EMI, Final Settlement, Cash taken for trip">
+
+                <button class="action-btn danger-btn" onclick="deductFromLedger()">Record Deduction</button>
+            </div>
+
+            <!-- AUTOMATED HISTORY LOG -->
+            <div class="card card-history">
+                <h3>Recent Ledger Activity</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Reference</th>
+                            <th>Amount (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <!-- Placeholders - JS will populate this from master_ledger_logs -->
+                        <tr>
+                            <td><span class="text-green">Auto-Deposit</span></td>
+                            <td>Daily Shop Closing (Oct 24)</td>
+                            <td class="text-green">+ 12,500.00</td>
+                        </tr>
+                        <tr>
+                            <td><span class="text-red">Drawings</span></td>
+                            <td>Owner Cash Withdrawal</td>
+                            <td class="text-red">- 5,000.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </main>
+
     <script>
+        let currentShopId = null;
+
+        // 1. CASCADING UI LOGIC
+        function toggleLedgerFields() {
+            const reason = document.getElementById('deduction-reason').value;
+            const vendorGroup = document.getElementById('vendor-group');
+            
+            if (reason === 'vendor') {
+                vendorGroup.classList.remove('hidden');
+            } else {
+                vendorGroup.classList.add('hidden');
+            }
+        }
+
+        // 2. FETCH SHOP & VENDORS ON LOAD
+        window.onload = () => {
+            setTimeout(async () => {
+                const { data: shopData } = await supabaseClient.from('shops').select('id, master_ledger_balance').single();
+                
+                if (shopData) {
+                    currentShopId = shopData.id;
+                    document.getElementById('ledger-balance').innerText = shopData.master_ledger_balance || '0.00';
+                    await loadLedgerVendors(currentShopId);
+                }
+            }, 500); 
+        };
+
+        // 3. LOAD VENDORS
+        async function loadLedgerVendors(shopId) {
+            const { data: vendors } = await supabaseClient.from('vendors').select('id, name, outstanding_balance').eq('shop_id', shopId);
+            const vendorSelect = document.getElementById('vendor-select');
+            vendorSelect.innerHTML = '<option value="none" selected disabled>Choose a Vendor...</option>';
+            
+            if (vendors && vendors.length > 0) {
+                vendors.forEach(v => {
+                    vendorSelect.innerHTML += `<option value="${v.id}">${v.name} (Owes: ₹${v.outstanding_balance || 0})</option>`;
+                });
+            } else {
+                vendorSelect.innerHTML = '<option disabled>No vendors found.</option>';
+            }
+        }
+
+        // 4. SUBMIT DEDUCTION (Placeholder for next backend step)
         async function deductFromLedger() {
+            if(!currentShopId) return alert("System loading, please wait...");
+            
             const reason = document.getElementById('deduction-reason').value;
             const amount = document.getElementById('deduction-amount').value;
+            const note = document.getElementById('deduction-note').value || 'No Note';
+            
+            if(reason === 'none') return alert("Select a deduction category.");
+            if(!amount || amount <= 0) return alert("Enter a valid amount.");
 
-            if(!amount || amount <= 0) return alert("Enter a valid amount to deduct.");
-            alert(`Ready to deduct ₹${amount} from the Master Ledger for: ${reason}.`);
+            let targetStr = reason.toUpperCase();
+            if (reason === 'vendor') {
+                const vendorId = document.getElementById('vendor-select').value;
+                if(vendorId === 'none' || !vendorId) return alert("You must select a vendor.");
+                targetStr = `VENDOR PAYOUT (Settle Balance)`;
+            }
+
+            alert(`Ready to deduct ₹${amount} from Master Ledger for [${targetStr}].\nNote: ${note}`);
         }
     </script>
 </body>
