@@ -3,189 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Owner Console</title>
-    <!-- Core Engine First -->
+    <title>Accounts Directory</title>
     <script src="supabase-init.js"></script>
     <style>
-        /* Base & Sidebar Layout Integration */
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
-        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px 20px; }
+        /* ULTRA-MINIMALIST UI */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; height: 100vh; overflow: hidden; }
+        .main-content { flex-grow: 1; padding: 40px; display: flex; gap: 30px; height: calc(100vh - 80px); }
         
-        /* Centralized Admin Container */
-        .admin-container { max-width: 600px; margin: 0 auto; }
+        /* SPLIT LAYOUT */
+        .directory-pane { width: 350px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; }
+        .ledger-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Card Styling */
-        .card { background: #fff; padding: 25px 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 25px; border: 1px solid #e2e8f0; border-top: 3px solid #cbd5e1; }
+        /* DIRECTORY PANE */
+        .pane-header { padding: 20px; border-bottom: 1px solid #f3f4f6; background: #f9fafb; display: flex; justify-content: space-between; align-items: center; }
+        .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; color: #111827; }
         
-        /* Premium Vault UI */
-        .card-vault { border-top: none; background: #0f172a; color: #f8fafc; border: 1px solid #1e293b; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .card-vault h3 { color: #94a3b8; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 20px; }
-        .vault-balance { font-size: 3em; font-weight: 800; color: #fbbf24; margin: 0 0 25px 0; letter-spacing: -1px; }
-        .vault-input { background: #1e293b; border: 1px solid #334155; color: white; font-size: 1.1em; }
-        .vault-input:focus { border-color: #fbbf24; box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15); }
-        .vault-btn { background: #fbbf24; color: #0f172a; font-weight: 800; margin-top: 0; }
-        .vault-btn:hover { background: #f59e0b; }
+        .tab-group { display: flex; border-bottom: 1px solid #f3f4f6; }
+        .tab { flex: 1; padding: 12px; text-align: center; font-size: 0.85em; font-weight: 600; color: #6b7280; cursor: pointer; text-transform: uppercase; background: #ffffff; border-bottom: 2px solid transparent; transition: 0.2s; }
+        .tab.active { color: #111827; border-bottom-color: #111827; background: #f9fafb; }
+        
+        .account-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
+        .account-item { padding: 15px; border-radius: 6px; cursor: pointer; margin-bottom: 5px; border: 1px solid transparent; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .account-item:hover { background: #f3f4f6; }
+        .account-item.active { background: #f0fdf4; border-color: #bbf7d0; }
+        .account-name { font-weight: 600; font-size: 0.95em; }
+        .account-balance { font-size: 0.85em; font-weight: 600; color: #dc2626; } /* Red by default for what we owe */
 
-        /* Form Accents */
-        .card-vendor { border-top-color: #3b82f6; } 
-        .card-staff { border-top-color: #10b981; } 
+        /* LEDGER PANE (PASSBOOK) */
+        .ledger-header { padding: 30px; border-bottom: 1px solid #f3f4f6; text-align: center; }
+        .ledger-title { font-size: 1.5em; font-weight: 700; margin: 0 0 5px 0; }
+        .ledger-subtitle { color: #6b7280; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .ledger-amount { font-size: 3em; font-weight: 800; margin: 15px 0 0 0; letter-spacing: -1px; color: #dc2626; }
         
-        h3 { margin-top: 0; font-size: 1.2em; font-weight: 700; color: #0f172a; margin-bottom: 20px; }
-        label { font-weight: 600; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ledger-actions { display: flex; gap: 15px; justify-content: center; padding: 20px; background: #f9fafb; border-bottom: 1px solid #f3f4f6; }
         
-        /* Inputs & Buttons */
-        input, select { width: 100%; padding: 12px 15px; margin-top: 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #cbd5e1; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; transition: 0.2s; }
-        input:focus, select:focus { border-color: #0f172a; background-color: #fff; }
+        .history-container { overflow-y: auto; flex-grow: 1; padding: 20px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .history-table th { text-align: left; padding: 10px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 500; font-size: 0.85em; }
+        .history-table td { padding: 12px 10px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
         
-        button.action-btn { background-color: #0f172a; color: #fff; border: none; cursor: pointer; font-weight: 600; margin-top: 25px; padding: 14px; border-radius: 6px; width: 100%; transition: 0.2s; font-size: 0.95em; }
-        button.action-btn:hover { background-color: #334155; }
+        /* CLEAN BUTTONS & INPUTS */
+        button.btn { background-color: #111827; color: #ffffff; border: none; cursor: pointer; font-weight: 500; padding: 10px 15px; border-radius: 6px; font-size: 0.9em; transition: 0.2s; }
+        button.btn:hover { background-color: #374151; }
+        button.btn-outline { background-color: transparent; color: #111827; border: 1px solid #d1d5db; }
+        button.btn-outline:hover { background: #f3f4f6; }
         
-        .flex-row { display: flex; gap: 15px; }
-        .flex-row > div { flex: 1; }
+        .text-green { color: #059669; font-weight: 600; } 
+        .text-red { color: #dc2626; font-weight: 600; }
         
-        /* Mobile adjustment */
-        @media (max-width: 768px) { .admin-container { width: 100%; } }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #9ca3af; text-align: center; padding: 40px; }
+
+        @media (max-width: 768px) {
+            .main-content { flex-direction: column; height: auto; }
+            .directory-pane { width: 100%; height: 300px; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- INJECT THE NAVBAR MODULE -->
     <script src="navbar.js"></script>
 
-    <!-- MAIN CONTENT AREA -->
     <main class="main-content">
-        <div class="admin-container">
-
-            <!-- MASTER VAULT -->
-            <div class="card card-vault">
-                <h3>Total Secure Reserve</h3>
-                <div class="vault-balance">₹ <span id="vault-display">0.00</span></div>
-
-                <label style="color: #64748b; margin-top: 0;">Sweep Cash to Vault</label>
-                <div class="flex-row" style="align-items: center; margin-top: 8px;">
-                    <div style="flex: 2;">
-                        <input type="number" id="vault-deposit" class="vault-input" placeholder="Amount (₹)">
-                    </div>
-                    <div style="flex: 1;">
-                        <button class="action-btn vault-btn" onclick="depositToVault()">Transfer</button>
-                    </div>
-                </div>
+        
+        <!-- LEFT COLUMN: DIRECTORY -->
+        <div class="directory-pane">
+            <div class="pane-header">
+                <h3>Directory</h3>
+                <button class="btn btn-outline" onclick="openNewAccountModal()" style="padding: 6px 12px; font-size: 0.8em;">+ Add New</button>
             </div>
-
-            <!-- ADD VENDOR -->
-            <div class="card card-vendor">
-                <h3>New Vendor</h3>
-                <label>Vendor Name / Company</label>
-                <input type="text" id="vendor-name" placeholder="e.g., Supply Co.">
-                
-                <div class="flex-row">
-                    <div style="flex: 2;">
-                        <label>Contact Info</label>
-                        <input type="text" id="vendor-contact" placeholder="Phone / GST">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>Opening Bal (₹)</label>
-                        <input type="number" id="vendor-balance" placeholder="0.00" value="0">
-                    </div>
-                </div>
-                
-                <button class="action-btn" onclick="addVendor()">Save Vendor</button>
+            
+            <div class="tab-group">
+                <div class="tab active" id="tab-vendors" onclick="switchTab('vendors')">Vendors</div>
+                <div class="tab" id="tab-finances" onclick="switchTab('finances')">Finances</div>
             </div>
-
-            <!-- ADD STAFF -->
-            <div class="card card-staff">
-                <h3>New Staff Member</h3>
-                <label>Staff Name</label>
-                <input type="text" id="staff-name" placeholder="e.g., John Doe">
-                
-                <div class="flex-row">
-                    <div>
-                        <label>Full Day Wage (₹)</label>
-                        <input type="number" id="staff-full" placeholder="0.00">
-                    </div>
-                    <div>
-                        <label>Half Day Wage (₹)</label>
-                        <input type="number" id="staff-half" placeholder="0.00">
-                    </div>
-                </div>
-                
-                <button class="action-btn" onclick="addStaff()">Save Staff Member</button>
+            
+            <div class="account-list" id="account-list">
+                <!-- Javascript will inject list items here -->
+                <div class="empty-state">Loading accounts...</div>
             </div>
-
         </div>
+
+        <!-- RIGHT COLUMN: LEDGER PASSBOOK -->
+        <div class="ledger-pane" id="ledger-pane" style="display: none;">
+            <div class="ledger-header">
+                <div class="ledger-subtitle" id="ledger-type">Vendor Account</div>
+                <h2 class="ledger-title" id="ledger-name">Loading...</h2>
+                <div style="font-size: 0.8em; color: #6b7280; margin-top: 10px;">TOTAL OUTSTANDING BALANCE</div>
+                <div class="ledger-amount">₹ <span id="ledger-balance">0.00</span></div>
+            </div>
+            
+            <div class="ledger-actions">
+                <button class="btn" onclick="logIncomingBill()">+ Log New Bill (Owe More)</button>
+                <button class="btn btn-outline" onclick="jumpToPayment()">Make Payment (Owe Less)</button>
+            </div>
+            
+            <div class="history-container">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Type</th>
+                            <th style="text-align: right;">Amount (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledger-history">
+                        <tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Select an account to view history.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PLACEHOLDER FOR NO SELECTION -->
+        <div class="ledger-pane empty-state" id="no-selection-pane">
+            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom: 15px; opacity: 0.5;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path>
+            </svg>
+            Select an account from the directory to view its passbook and transaction history.
+        </div>
+
     </main>
 
-    <!-- THE REAL DATABASE LOGIC -->
     <script>
         let currentShopId = null;
+        let activeTab = 'vendors';
+        let allVendors = [];
 
-        // 1. Fetch Shop ID with Error Catching
         window.onload = () => {
             setTimeout(async () => {
-                // Let's ask Supabase for the shop, and catch any errors
-                const { data, error } = await supabaseClient.from('shops').select('id, vault_balance').single();
-                
-                if (error) {
-                    alert("SUPABASE ERROR: " + error.message);
-                    console.error(error);
-                } else if (data) {
-                    currentShopId = data.id;
-                    document.getElementById('vault-display').innerText = data.vault_balance || '0.00';
-                } else {
-                    alert("CRITICAL: No shop found in the database for your account.");
+                const { data: shopData } = await supabaseClient.from('shops').select('id').single();
+                if (shopData) {
+                    currentShopId = shopData.id;
+                    await fetchDirectoryData();
                 }
-            }, 800); // Increased delay slightly to ensure auth is loaded
+            }, 500); 
         };
 
-        // 2. Vault Logic (UI Placeholder until Ledger history table is built)
-        async function depositToVault() {
-            const amount = document.getElementById('vault-deposit').value;
-            if(!amount || amount <= 0) return alert("Enter a valid amount.");
-            alert("Vault transaction logic pending master ledger table creation.");
+        function switchTab(tabName) {
+            activeTab = tabName;
+            document.getElementById('tab-vendors').classList.remove('active');
+            document.getElementById('tab-finances').classList.remove('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            document.getElementById('ledger-pane').style.display = 'none';
+            document.getElementById('no-selection-pane').style.display = 'flex';
+            
+            renderList();
         }
 
-        // 3. Real Vendor Push
-        async function addVendor() {
-            const name = document.getElementById('vendor-name').value;
-            if(!name) return alert("Vendor name is required.");
-            if(!currentShopId) return alert("Loading secure connection... please wait.");
-
-            const { error } = await supabaseClient.from('vendors').insert([{
-                shop_id: currentShopId,
-                name: name
-                // Note: We will add contact and balance columns to the DB in a future step.
-            }]);
-
-            if (error) return alert("Error: " + error.message);
+        async function fetchDirectoryData() {
+            if(!currentShopId) return;
             
-            alert("Vendor saved successfully!");
-            document.getElementById('vendor-name').value = '';
-            document.getElementById('vendor-contact').value = '';
-            document.getElementById('vendor-balance').value = '0';
+            // Fetch Vendors
+            const { data: vendors, error } = await supabaseClient.from('vendors').select('*').eq('shop_id', currentShopId);
+            if (!error && vendors) {
+                allVendors = vendors;
+            }
+            
+            renderList();
         }
 
-        // 4. Real Staff Push
-        async function addStaff() {
-            const name = document.getElementById('staff-name').value;
-            const full = document.getElementById('staff-full').value || 0;
-            const half = document.getElementById('staff-half').value || 0;
-            
-            if(!name) return alert("Staff name is required.");
-            if(!currentShopId) return alert("Loading secure connection... please wait.");
+        function renderList() {
+            const listContainer = document.getElementById('account-list');
+            listContainer.innerHTML = '';
 
-            const { error } = await supabaseClient.from('staff').insert([{
-                shop_id: currentShopId,
-                name: name,
-                full_day_wage: parseFloat(full),
-                half_day_wage: parseFloat(half)
-            }]);
+            if (activeTab === 'vendors') {
+                if (allVendors.length === 0) {
+                    listContainer.innerHTML = '<div class="empty-state" style="padding: 20px; font-size: 0.9em;">No vendors found. Click "Add New" to create one.</div>';
+                    return;
+                }
 
-            if (error) return alert("Error: " + error.message);
+                allVendors.forEach(v => {
+                    const balance = parseFloat(v.outstanding_balance || 0).toFixed(2);
+                    listContainer.innerHTML += `
+                        <div class="account-item" onclick="openLedger('${v.id}', '${v.name}', ${balance}, 'VENDOR')">
+                            <span class="account-name">${v.name}</span>
+                            <span class="account-balance">₹ ${balance}</span>
+                        </div>
+                    `;
+                });
+            } else if (activeTab === 'finances') {
+                // Placeholder for finances until we build the finances table
+                listContainer.innerHTML = '<div class="empty-state" style="padding: 20px; font-size: 0.9em;">Finance accounts coming in next step.</div>';
+            }
+        }
+
+        function openLedger(id, name, balance, type) {
+            document.getElementById('no-selection-pane').style.display = 'none';
+            document.getElementById('ledger-pane').style.display = 'flex';
             
-            alert("Staff saved successfully!");
-            document.getElementById('staff-name').value = '';
-            document.getElementById('staff-full').value = '';
-            document.getElementById('staff-half').value = '';
+            document.getElementById('ledger-name').innerText = name;
+            document.getElementById('ledger-balance').innerText = balance.toFixed(2);
+            document.getElementById('ledger-type').innerText = type + ' ACCOUNT';
+
+            // Highlighting the active item in the list
+            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // Placeholder for fetching history
+            document.getElementById('ledger-history').innerHTML = `
+                <tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history... (Requires new database table)</td></tr>
+            `;
+        }
+
+        function openNewAccountModal() {
+            // We will build a sleek modal for this in the next step. For now:
+            alert("This will open a clean pop-up to create a Vendor or Finance account.");
+        }
+
+        function logIncomingBill() {
+            alert("This will log a new bill received from the vendor, increasing the amount you owe them.");
+        }
+
+        function jumpToPayment() {
+            alert("Redirecting to Dashboard/Master Ledger to record an actual payment out of your cash drawer or bank.");
         }
     </script>
 </body>
