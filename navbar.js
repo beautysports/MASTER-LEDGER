@@ -37,6 +37,7 @@ const sidebarHTML = `
     <div class="nav-links">
         <a href="dashboard.html" class="nav-link" id="link-dashboard">Shop Floor</a>
         <a href="master-ledger.html" class="nav-link admin-only" id="link-ledger">Master Ledger</a>
+        <a href="staff.html">Staff Mgmt (Admin)</a>
         <a href="accounts.html" class="nav-link admin-only" id="link-accounts">Manage Accounts</a>
     </div>
 
