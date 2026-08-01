@@ -3,59 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accounts Directory</title>
+    <title>Accounts & Vendors</title>
     <script src="supabase-init.js"></script>
     <style>
-        /* ULTRA-MINIMALIST UI */
+        /* MINIMALIST BASE */
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; height: 100vh; overflow: hidden; }
-        .main-content { flex-grow: 1; padding: 40px; display: flex; gap: 30px; height: calc(100vh - 80px); }
+        .main-content { flex-grow: 1; padding: 30px; display: flex; gap: 25px; height: calc(100vh - 60px); }
         
-        /* SPLIT LAYOUT */
-        .directory-pane { width: 350px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; }
-        .ledger-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; }
+        /* LAYOUT PANES */
+        .directory-pane { width: 320px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; }
+        .right-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         
-        /* DIRECTORY PANE */
-        .pane-header { padding: 20px; border-bottom: 1px solid #f3f4f6; background: #f9fafb; display: flex; justify-content: space-between; align-items: center; }
-        .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; color: #111827; }
+        /* DIRECTORY (LEFT) */
+        .pane-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
+        .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; }
         
         .tab-group { display: flex; border-bottom: 1px solid #f3f4f6; }
-        .tab { flex: 1; padding: 12px; text-align: center; font-size: 0.85em; font-weight: 600; color: #6b7280; cursor: pointer; text-transform: uppercase; background: #ffffff; border-bottom: 2px solid transparent; transition: 0.2s; }
+        .tab { flex: 1; padding: 10px; text-align: center; font-size: 0.8em; font-weight: 600; color: #6b7280; cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; }
         .tab.active { color: #111827; border-bottom-color: #111827; background: #f9fafb; }
         
         .account-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
-        .account-item { padding: 15px; border-radius: 6px; cursor: pointer; margin-bottom: 5px; border: 1px solid transparent; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .account-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; }
         .account-item:hover { background: #f3f4f6; }
         .account-item.active { background: #f0fdf4; border-color: #bbf7d0; }
-        .account-name { font-weight: 600; font-size: 0.95em; }
-        .account-balance { font-size: 0.85em; font-weight: 600; color: #dc2626; } /* Red by default for what we owe */
+        .acc-name { font-weight: 500; font-size: 0.9em; }
+        .acc-bal { font-size: 0.85em; font-weight: 600; color: #dc2626; }
 
-        /* LEDGER PANE (PASSBOOK) */
-        .ledger-header { padding: 30px; border-bottom: 1px solid #f3f4f6; text-align: center; }
-        .ledger-title { font-size: 1.5em; font-weight: 700; margin: 0 0 5px 0; }
-        .ledger-subtitle { color: #6b7280; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-        .ledger-amount { font-size: 3em; font-weight: 800; margin: 15px 0 0 0; letter-spacing: -1px; color: #dc2626; }
+        /* VIEW: PASSBOOK (RIGHT) */
+        .passbook-view { display: none; flex-direction: column; height: 100%; }
+        .pb-header { padding: 25px; text-align: center; border-bottom: 1px solid #f3f4f6; }
+        .pb-type { font-size: 0.75em; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }
+        .pb-name { font-size: 1.5em; font-weight: 700; margin: 5px 0; }
+        .pb-bal { font-size: 2.5em; font-weight: 700; color: #dc2626; margin-top: 10px; letter-spacing: -1px; }
         
-        .ledger-actions { display: flex; gap: 15px; justify-content: center; padding: 20px; background: #f9fafb; border-bottom: 1px solid #f3f4f6; }
+        .pb-actions { display: flex; gap: 15px; justify-content: center; padding: 15px; background: #f9fafb; border-bottom: 1px solid #f3f4f6; }
         
-        .history-container { overflow-y: auto; flex-grow: 1; padding: 20px; }
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-        .history-table th { text-align: left; padding: 10px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 500; font-size: 0.85em; }
-        .history-table td { padding: 12px 10px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
-        
-        /* CLEAN BUTTONS & INPUTS */
-        button.btn { background-color: #111827; color: #ffffff; border: none; cursor: pointer; font-weight: 500; padding: 10px 15px; border-radius: 6px; font-size: 0.9em; transition: 0.2s; }
-        button.btn:hover { background-color: #374151; }
-        button.btn-outline { background-color: transparent; color: #111827; border: 1px solid #d1d5db; }
-        button.btn-outline:hover { background: #f3f4f6; }
-        
-        .text-green { color: #059669; font-weight: 600; } 
-        .text-red { color: #dc2626; font-weight: 600; }
-        
-        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #9ca3af; text-align: center; padding: 40px; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .history-table th { text-align: left; padding: 12px 20px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 0.9em; }
+        .history-table td { padding: 12px 20px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
 
+        /* VIEW: CREATE ACCOUNT (RIGHT) */
+        .create-view { display: none; flex-direction: column; padding: 30px; max-width: 500px; margin: 0 auto; width: 100%; }
+        .create-view h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
+        
+        label { display: block; font-size: 0.8em; font-weight: 600; color: #4b5563; margin-top: 15px; margin-bottom: 5px; }
+        input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; font-size: 0.95em; outline: none; box-sizing: border-box; }
+        input:focus { border-color: #111827; background: #fff; }
+        
+        .help-text { font-size: 0.75em; color: #9ca3af; margin-top: 4px; display: block; }
+
+        /* UTILS */
+        .hidden { display: none !important; }
+        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.9em; text-align: center; padding: 20px; flex-direction: column; }
+        
+        button.btn { background: #111827; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 0.9em; }
+        button.btn:hover { background: #374151; }
+        button.btn-outline { background: #fff; color: #111827; border: 1px solid #d1d5db; }
+        button.btn-outline:hover { background: #f9fafb; }
+        button.btn-green { background: #059669; }
+        button.btn-green:hover { background: #047857; }
+        
         @media (max-width: 768px) {
             .main-content { flex-direction: column; height: auto; }
-            .directory-pane { width: 100%; height: 300px; }
+            .directory-pane { width: 100%; height: 350px; }
         }
     </style>
 </head>
@@ -65,11 +75,12 @@
 
     <main class="main-content">
         
-        <!-- LEFT COLUMN: DIRECTORY -->
+        <!-- LEFT: DIRECTORY PANE -->
         <div class="directory-pane">
             <div class="pane-header">
                 <h3>Directory</h3>
-                <button class="btn btn-outline" onclick="openNewAccountModal()" style="padding: 6px 12px; font-size: 0.8em;">+ Add New</button>
+                <!-- THIS BUTTON IS HIDDEN UNLESS ADMIN -->
+                <button class="btn btn-outline admin-only hidden" onclick="showCreateView()" style="padding: 4px 10px; font-size: 0.8em;">+ Add New</button>
             </div>
             
             <div class="tab-group">
@@ -78,145 +89,214 @@
             </div>
             
             <div class="account-list" id="account-list">
-                <!-- Javascript will inject list items here -->
-                <div class="empty-state">Loading accounts...</div>
+                <div class="empty-state">Loading...</div>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: LEDGER PASSBOOK -->
-        <div class="ledger-pane" id="ledger-pane" style="display: none;">
-            <div class="ledger-header">
-                <div class="ledger-subtitle" id="ledger-type">Vendor Account</div>
-                <h2 class="ledger-title" id="ledger-name">Loading...</h2>
-                <div style="font-size: 0.8em; color: #6b7280; margin-top: 10px;">TOTAL OUTSTANDING BALANCE</div>
-                <div class="ledger-amount">₹ <span id="ledger-balance">0.00</span></div>
-            </div>
+        <!-- RIGHT: DYNAMIC PANE -->
+        <div class="right-pane">
             
-            <div class="ledger-actions">
-                <button class="btn" onclick="logIncomingBill()">+ Log New Bill (Owe More)</button>
-                <button class="btn btn-outline" onclick="jumpToPayment()">Make Payment (Owe Less)</button>
+            <!-- DEFAULT STATE: EMPTY -->
+            <div id="view-empty" class="empty-state" style="display: flex;">
+                Select an account from the left to view history, or create a new one.
             </div>
-            
-            <div class="history-container">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Description</th>
-                            <th>Type</th>
-                            <th style="text-align: right;">Amount (₹)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ledger-history">
-                        <tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Select an account to view history.</td></tr>
-                    </tbody>
-                </table>
+
+            <!-- STATE 1: PASSBOOK (VIEW ACCOUNT) -->
+            <div id="view-passbook" class="passbook-view">
+                <div class="pb-header">
+                    <div class="pb-type" id="pb-type">Vendor</div>
+                    <div class="pb-name" id="pb-name">Loading...</div>
+                    <div style="font-size: 0.75em; color: #6b7280; margin-top: 10px; font-weight: 600;">WE CURRENTLY OWE</div>
+                    <div class="pb-bal">₹ <span id="pb-bal">0.00</span></div>
+                </div>
+                
+                <div class="pb-actions">
+                    <button class="btn btn-green" onclick="alert('Will open Add Bill pop-up')">+ Add Due Bill</button>
+                    <button class="btn btn-outline" onclick="alert('Will jump to Dashboard to pay')">Record Payment</button>
+                </div>
+                
+                <div style="overflow-y: auto; flex-grow: 1;">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Bill No. / Ref</th>
+                                <th>Type</th>
+                                <th style="text-align: right;">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pb-history">
+                            <tr><td colspan="4" class="empty-state" style="border:none;">No bills or payments logged yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
 
-        <!-- PLACEHOLDER FOR NO SELECTION -->
-        <div class="ledger-pane empty-state" id="no-selection-pane">
-            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom: 15px; opacity: 0.5;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path>
-            </svg>
-            Select an account from the directory to view its passbook and transaction history.
-        </div>
+            <!-- STATE 2: CREATE ACCOUNT (ADMIN ONLY) -->
+            <div id="view-create" class="create-view">
+                <h2>Create New Account</h2>
+                
+                <label>Account Type</label>
+                <select id="new-type" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #d1d5db;">
+                    <option value="vendor">Vendor / Supplier</option>
+                    <option value="finance">Finance / Bank</option>
+                </select>
 
+                <label>Account Name (Required)</label>
+                <input type="text" id="new-name" placeholder="e.g., Supply Co. or HDFC Bank">
+                
+                <label>Phone Number <span style="font-weight: normal; color: #9ca3af;">(Optional)</span></label>
+                <input type="text" id="new-phone" placeholder="e.g., 9876543210">
+
+                <label>GST / Tax ID <span style="font-weight: normal; color: #9ca3af;">(Optional)</span></label>
+                <input type="text" id="new-gst" placeholder="e.g., 29ABCDE1234F1Z5">
+
+                <label>Opening Balance (₹) <span style="font-weight: normal; color: #9ca3af;">(Optional)</span></label>
+                <input type="number" id="new-balance" placeholder="0.00">
+                <span class="help-text">Amount you *already owe* before using this software.</span>
+
+                <div style="margin-top: 25px; display: flex; gap: 10px;">
+                    <button class="btn" onclick="saveNewAccount()">Save Account</button>
+                    <button class="btn btn-outline" onclick="showEmptyView()">Cancel</button>
+                </div>
+            </div>
+
+        </div>
     </main>
 
     <script>
         let currentShopId = null;
+        let isAdmin = false;
         let activeTab = 'vendors';
         let allVendors = [];
 
         window.onload = () => {
             setTimeout(async () => {
-                const { data: shopData } = await supabaseClient.from('shops').select('id').single();
-                if (shopData) {
-                    currentShopId = shopData.id;
-                    await fetchDirectoryData();
+                // Check auth & role
+                const { data: userData } = await supabaseClient.auth.getUser();
+                if (userData && userData.user) {
+                    const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
+                    if (profile) {
+                        currentShopId = profile.shop_id;
+                        isAdmin = (profile.role === 'admin');
+                        
+                        // Show Admin buttons if authorized
+                        if (isAdmin) {
+                            document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                        }
+
+                        await fetchDirectory();
+                    }
                 }
             }, 500); 
         };
 
+        // --- UI NAVIGATION ---
+        
         function switchTab(tabName) {
             activeTab = tabName;
             document.getElementById('tab-vendors').classList.remove('active');
             document.getElementById('tab-finances').classList.remove('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
-            
-            document.getElementById('ledger-pane').style.display = 'none';
-            document.getElementById('no-selection-pane').style.display = 'flex';
-            
+            showEmptyView();
             renderList();
         }
 
-        async function fetchDirectoryData() {
+        function showEmptyView() {
+            document.getElementById('view-empty').style.display = 'flex';
+            document.getElementById('view-passbook').style.display = 'none';
+            document.getElementById('view-create').style.display = 'none';
+            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
+        }
+
+        function showCreateView() {
+            document.getElementById('view-empty').style.display = 'none';
+            document.getElementById('view-passbook').style.display = 'none';
+            document.getElementById('view-create').style.display = 'flex';
+            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
+        }
+
+        function openPassbook(element, id, name, balance, type) {
+            document.getElementById('view-empty').style.display = 'none';
+            document.getElementById('view-create').style.display = 'none';
+            document.getElementById('view-passbook').style.display = 'flex';
+            
+            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            document.getElementById('pb-name').innerText = name;
+            document.getElementById('pb-bal').innerText = parseFloat(balance).toFixed(2);
+            document.getElementById('pb-type').innerText = type;
+        }
+
+        // --- DATA LOGIC ---
+
+        async function fetchDirectory() {
             if(!currentShopId) return;
-            
-            // Fetch Vendors
-            const { data: vendors, error } = await supabaseClient.from('vendors').select('*').eq('shop_id', currentShopId);
-            if (!error && vendors) {
-                allVendors = vendors;
-            }
-            
+            const { data: vendors } = await supabaseClient.from('vendors').select('*').eq('shop_id', currentShopId).order('name');
+            if (vendors) allVendors = vendors;
             renderList();
         }
 
         function renderList() {
-            const listContainer = document.getElementById('account-list');
-            listContainer.innerHTML = '';
+            const list = document.getElementById('account-list');
+            list.innerHTML = '';
 
             if (activeTab === 'vendors') {
                 if (allVendors.length === 0) {
-                    listContainer.innerHTML = '<div class="empty-state" style="padding: 20px; font-size: 0.9em;">No vendors found. Click "Add New" to create one.</div>';
+                    list.innerHTML = '<div class="empty-state">No vendors found.</div>';
                     return;
                 }
-
                 allVendors.forEach(v => {
-                    const balance = parseFloat(v.outstanding_balance || 0).toFixed(2);
-                    listContainer.innerHTML += `
-                        <div class="account-item" onclick="openLedger('${v.id}', '${v.name}', ${balance}, 'VENDOR')">
-                            <span class="account-name">${v.name}</span>
-                            <span class="account-balance">₹ ${balance}</span>
+                    const bal = v.outstanding_balance || 0;
+                    list.innerHTML += `
+                        <div class="account-item" onclick="openPassbook(this, '${v.id}', '${v.name}', ${bal}, 'Vendor')">
+                            <span class="acc-name">${v.name}</span>
+                            <span class="acc-bal">₹ ${parseFloat(bal).toFixed(2)}</span>
                         </div>
                     `;
                 });
-            } else if (activeTab === 'finances') {
-                // Placeholder for finances until we build the finances table
-                listContainer.innerHTML = '<div class="empty-state" style="padding: 20px; font-size: 0.9em;">Finance accounts coming in next step.</div>';
+            } else {
+                list.innerHTML = '<div class="empty-state">Finances table pending database update.</div>';
             }
         }
 
-        function openLedger(id, name, balance, type) {
-            document.getElementById('no-selection-pane').style.display = 'none';
-            document.getElementById('ledger-pane').style.display = 'flex';
+        async function saveNewAccount() {
+            if (!currentShopId) return;
             
-            document.getElementById('ledger-name').innerText = name;
-            document.getElementById('ledger-balance').innerText = balance.toFixed(2);
-            document.getElementById('ledger-type').innerText = type + ' ACCOUNT';
+            const type = document.getElementById('new-type').value;
+            const name = document.getElementById('new-name').value;
+            const phone = document.getElementById('new-phone').value || null;
+            const gst = document.getElementById('new-gst').value || null;
+            const bal = parseFloat(document.getElementById('new-balance').value) || 0;
 
-            // Highlighting the active item in the list
-            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+            if (!name) return alert("Account Name is required.");
 
-            // Placeholder for fetching history
-            document.getElementById('ledger-history').innerHTML = `
-                <tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history... (Requires new database table)</td></tr>
-            `;
-        }
+            if (type === 'vendor') {
+                // WARNING: Phone and GST won't save until we update the database columns next!
+                const { error } = await supabaseClient.from('vendors').insert([{
+                    shop_id: currentShopId,
+                    name: name,
+                    outstanding_balance: bal
+                    // phone: phone, 
+                    // gst_number: gst
+                }]);
 
-        function openNewAccountModal() {
-            // We will build a sleek modal for this in the next step. For now:
-            alert("This will open a clean pop-up to create a Vendor or Finance account.");
-        }
-
-        function logIncomingBill() {
-            alert("This will log a new bill received from the vendor, increasing the amount you owe them.");
-        }
-
-        function jumpToPayment() {
-            alert("Redirecting to Dashboard/Master Ledger to record an actual payment out of your cash drawer or bank.");
+                if (error) return alert("Error: " + error.message);
+                
+                alert("Account created successfully!");
+                
+                // Clear form & refresh
+                document.getElementById('new-name').value = '';
+                document.getElementById('new-phone').value = '';
+                document.getElementById('new-gst').value = '';
+                document.getElementById('new-balance').value = '';
+                
+                await fetchDirectory();
+                showEmptyView();
+            } else {
+                alert("Finance accounts require the new finances table in the database.");
+            }
         }
     </script>
 </body>
