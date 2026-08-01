@@ -259,8 +259,12 @@
         }
 
         async function loadDropdowns(shopId) {
-            // Vendors
-            const { data: vendors } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId);
+            // Vendors (Filtered by account_type)
+            const { data: vendors } = await supabaseClient.from('vendors')
+                .select('id, name')
+                .eq('shop_id', shopId)
+                .eq('account_type', 'vendor');
+            
             const vSelect = document.getElementById('vendor-select');
             vSelect.innerHTML = '<option value="" selected disabled>Choose Vendor...</option>';
             if (vendors) vendors.forEach(v => vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
@@ -271,8 +275,12 @@
             sSelect.innerHTML = '<option value="" selected disabled>Choose Staff...</option>';
             if (staff) staff.forEach(s => sSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
 
-            // Finance Accounts (Pulled from vendors/finance tables if applicable, or fallback)
-            const { data: finances } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId); // Or specialized finance tables if created
+            // Finances (Filtered by account_type)
+            const { data: finances } = await supabaseClient.from('vendors')
+                .select('id, name')
+                .eq('shop_id', shopId)
+                .eq('account_type', 'finance');
+                
             const fSelect = document.getElementById('finance-select');
             fSelect.innerHTML = '<option value="" selected disabled>Choose Finance / Kuri...</option>';
             if (finances) finances.forEach(f => fSelect.innerHTML += `<option value="${f.id}">${f.name}</option>`);
