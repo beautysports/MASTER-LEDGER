@@ -81,7 +81,6 @@
 
     <main class="main-content">
         
-        <!-- HEADER & ACTIVE DATE SELECTOR -->
         <div class="header-bar">
             <h1 class="header-title">Shop Dashboard</h1>
             <div class="date-picker-container">
@@ -90,7 +89,6 @@
             </div>
         </div>
 
-        <!-- SUMMARY CARD -->
         <div class="card summary-header">
             <div class="master-label">Physical Cash Drawer</div>
             <div class="master-balance">₹ <span id="display-balance">0.00</span></div>
@@ -165,7 +163,6 @@
             </div>
         </div>
 
-        <!-- HISTORY TABLE -->
         <div class="action-grid">
             <div class="card card-full">
                 <h3>Transactions for Selected Date</h3>
@@ -194,7 +191,6 @@
         let isAdmin = false;
 
         window.onload = () => {
-            // Default active date to today
             document.getElementById('active-date').valueAsDate = new Date();
             
             setTimeout(async () => {
@@ -224,7 +220,6 @@
             loadDashboardData();
         }
 
-        // --- PAYMENT METHOD TOGGLE LOGIC ---
         function setIncomeMethod(method) {
             document.getElementById('income-method').value = method;
             if (method === 'CASH') {
@@ -259,11 +254,11 @@
         }
 
         async function loadDropdowns(shopId) {
-            // Vendors (Filtered by account_type)
+            // STRICT CLASSIFICATION: Vendors only
             const { data: vendors } = await supabaseClient.from('vendors')
                 .select('id, name')
                 .eq('shop_id', shopId)
-                .eq('account_type', 'vendor');
+                .or('account_type.eq.vendor,account_type.is.null');
             
             const vSelect = document.getElementById('vendor-select');
             vSelect.innerHTML = '<option value="" selected disabled>Choose Vendor...</option>';
@@ -275,7 +270,7 @@
             sSelect.innerHTML = '<option value="" selected disabled>Choose Staff...</option>';
             if (staff) staff.forEach(s => sSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
 
-            // Finances (Filtered by account_type)
+            // STRICT CLASSIFICATION: Finance/Kuri only
             const { data: finances } = await supabaseClient.from('vendors')
                 .select('id, name')
                 .eq('shop_id', shopId)
@@ -292,7 +287,6 @@
             const selectedDate = document.getElementById('active-date').value;
             if (!selectedDate) return;
 
-            // Date range for the selected active date (Start to End of day UTC/Local)
             const startOfDay = `${selectedDate}T00:00:00`;
             const endOfDay = `${selectedDate}T23:59:59`;
 
@@ -304,10 +298,7 @@
                 .lte('created_at', endOfDay)
                 .order('created_at', { ascending: false });
             
-            if (error) {
-                console.error("Fetch Error:", error);
-                return;
-            }
+            if (error) return console.error("Fetch Error:", error);
 
             let cashIn = 0, cashOut = 0, totalUpi = 0;
             const tbody = document.getElementById('txn-body');
@@ -355,7 +346,6 @@
         function getSubmissionTimestamp() {
             const dateVal = document.getElementById('active-date').value;
             const now = new Date();
-            // Combine selected date with current time hours/minutes to keep correct chronological sorting
             return `${dateVal}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}.000Z`;
         }
 
@@ -400,9 +390,11 @@
                 staff_id = document.getElementById('staff-select').value;
                 if (!staff_id) return alert("Please select a staff member.");
             } else if (category === 'finance') {
-                vendor_id = document.getElementById('finance-select').value; // Links finance/kuri to vendor/account ID
+                vendor_id = document.getElementById('finance-select').value; 
+                if (!vendor_id) return alert("Please select a Finance / Kuri account.");
             }
 
+            // 1. Log Daily Transaction
             const { error } = await supabaseClient.from('daily_transactions').insert([{
                 shop_id: currentShopId, 
                 transaction_type: 'EXPENSE', 
@@ -417,6 +409,15 @@
             }]);
 
             if (error) return alert("Error recording expense: " + error.message);
+
+            // 2. STRICT CLASSIFICATION: Instantly deduct from Account / Finance balance
+            if (vendor_id) {
+                const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendor_id).single();
+                if (vData) {
+                    const newBal = parseFloat(vData.outstanding_balance || 0) - amount;
+                    await supabaseClient.from('vendors').update({ outstanding_balance: newBal }).eq('id', vendor_id);
+                }
+            }
             
             document.getElementById('expense-amount').value = '';
             document.getElementById('expense-note').value = '';
