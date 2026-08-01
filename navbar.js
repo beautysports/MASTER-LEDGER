@@ -3,9 +3,21 @@ async function loadSidebarNavbar() {
     // Prevent it from duplicating if it accidentally runs twice
     if (document.getElementById('sys-sidebar-nav')) return;
 
+    // THE FIX: Wait for supabaseClient to be loaded by supabase-init.js
+    let retries = 0;
+    while (!window.supabaseClient && retries < 20) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        retries++;
+    }
+
+    if (!window.supabaseClient) {
+        console.error("Fatal Error: Supabase client never loaded.");
+        return;
+    }
+
     try {
         // 1. Verify Authentication
-        const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+        const { data: userData, error: authError } = await window.supabaseClient.auth.getUser();
         
         if (authError || !userData || !userData.user) {
             window.location.replace('index.html');
@@ -13,7 +25,7 @@ async function loadSidebarNavbar() {
         }
 
         // 2. Get User Role
-        const { data: profile } = await supabaseClient
+        const { data: profile } = await window.supabaseClient
             .from('user_profiles')
             .select('role')
             .eq('id', userData.user.id)
@@ -39,7 +51,7 @@ async function loadSidebarNavbar() {
                 background-color: #0f172a;
                 display: flex;
                 flex-direction: column;
-                z-index: 99999; /* Impossible to hide behind other elements */
+                z-index: 99999;
                 box-shadow: 2px 0 10px rgba(0,0,0,0.1);
             }
 
@@ -178,7 +190,7 @@ async function loadSidebarNavbar() {
             const btn = document.getElementById('logout-btn');
             btn.innerText = 'Exiting...';
             try {
-                await supabaseClient.auth.signOut();
+                await window.supabaseClient.auth.signOut();
             } catch(e) {
                 console.error('Logout error suppressed');
             } finally {
@@ -191,7 +203,7 @@ async function loadSidebarNavbar() {
     }
 }
 
-// Ensure the page is ready before drawing the sidebar
+// Fire the function
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadSidebarNavbar);
 } else {
