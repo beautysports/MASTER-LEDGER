@@ -15,7 +15,7 @@
         .card { background: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .card-full { grid-column: span 2; }
         
-        /* TOP SUMMARY - ENLARGED AS REQUESTED */
+        /* TOP SUMMARY - ENLARGED */
         .summary-header { text-align: center; padding: 40px 20px; background: linear-gradient(to bottom, #ffffff, #f8fafc); position: relative; }
         .master-label { color: #64748b; font-size: 0.9em; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
         .master-balance { font-size: 5.5rem; font-weight: 800; margin: 0; letter-spacing: -2.5px; color: #0f172a; line-height: 1; }
@@ -265,14 +265,14 @@
             const startOfDay = `${selectedDate}T00:00:00`;
             const endOfDay = `${selectedDate}T23:59:59`;
 
-            // SQL JOIN: Pulls exact Vendor and Staff names directly from the database into the dashboard
+            // Pulling direct Vendor and Staff names with JOIN
             const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select(`*, vendors ( name ), staff ( name )`)
                 .eq('shop_id', currentShopId)
                 .eq('status', 'open')
                 .gte('created_at', startOfDay)
                 .lte('created_at', endOfDay)
-                .order('created_at', { ascending: true }); // Ascending to calculate proper running balance
+                .order('created_at', { ascending: true }); 
             
             if (error) return console.error("Fetch Error:", error);
 
@@ -284,7 +284,6 @@
                 txns.forEach(txn => {
                     const amt = parseFloat(txn.amount);
                     
-                    // Track Master Totals
                     if (txn.payment_method === 'UPI') {
                         if (txn.transaction_type === 'INCOME') totalUpi += amt;
                     } else if (txn.payment_method === 'CASH') {
@@ -292,7 +291,6 @@
                         if (txn.transaction_type === 'EXPENSE') { cashOut += amt; runningCashBalance -= amt; }
                     }
 
-                    // Build Particulars Text
                     let particularsText = `<strong>${(txn.category || 'OTHER').toUpperCase()}</strong>`;
                     if (txn.category === 'vendor' && txn.vendors) particularsText = `<strong>Vendor:</strong> ${txn.vendors.name}`;
                     else if (txn.category === 'finance' && txn.vendors) particularsText = `<strong>Finance:</strong> ${txn.vendors.name}`;
@@ -309,7 +307,6 @@
                 });
             }
 
-            // Reverse for display (Newest at top)
             processedTxns.reverse();
 
             const tbody = document.getElementById('txn-body');
@@ -384,7 +381,7 @@
             await loadDashboardData();
         }
 
-       async function submitExpense() { 
+        async function submitExpense() { 
             if(!currentShopId) return;
             const category = document.getElementById('expense-category').value;
             const method = document.getElementById('expense-method').value;
@@ -422,62 +419,24 @@
 
             if (insertErr) return Swal.fire('Ledger Error', insertErr.message, 'error');
 
-            // 2. STRICT CLASSIFICATION: Instantly deduct from Account / Finance balance
+            // 2. STRICT CLASSIFICATION: Instantly deduct from Account / Finance balance securely
             if (vendor_id) {
-                // Fetch the current balance securely
                 const { data: vData, error: fetchErr } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendor_id).single();
                 
                 if (fetchErr) {
                     Swal.fire('Sync Error', 'Could not fetch current balance: ' + fetchErr.message, 'error');
                 } else if (vData) {
                     const newBal = parseFloat(vData.outstanding_balance || 0) - amount;
-                    
-                    // Push the new balance to the database
                     const { error: updateErr } = await supabaseClient.from('vendors').update({ outstanding_balance: newBal }).eq('id', vendor_id);
                     
-                    // If the database blocks the update, scream loudly
-                    if (updateErr) {
-                        return Swal.fire('Database Firewall Blocked Update', updateErr.message, 'error');
-                    }
+                    if (updateErr) return Swal.fire('Database Firewall Blocked Update', updateErr.message, 'error');
                 }
             }
             
-            // Clean up and refresh
             document.getElementById('expense-amount').value = '';
             document.getElementById('expense-note').value = '';
             Swal.fire({ title: 'Expense Recorded', text: 'Account balance has been synced.', icon: 'success', timer: 1500, showConfirmButton: false });
             
-            await loadDashboardData();
-        }
-
-            // 1. Log Daily Transaction
-            const { error } = await supabaseClient.from('daily_transactions').insert([{
-                shop_id: currentShopId, 
-                transaction_type: 'EXPENSE', 
-                category: category, 
-                payment_method: method, 
-                amount: amount, 
-                reference_note: note, 
-                vendor_id: vendor_id, 
-                staff_id: staff_id,
-                status: 'open',
-                created_at: getSubmissionTimestamp()
-            }]);
-
-            if (error) return Swal.fire('Error', error.message, 'error');
-
-            // 2. STRICT CLASSIFICATION: Instantly deduct from Account / Finance balance
-            if (vendor_id) {
-                const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendor_id).single();
-                if (vData) {
-                    const newBal = parseFloat(vData.outstanding_balance || 0) - amount;
-                    await supabaseClient.from('vendors').update({ outstanding_balance: newBal }).eq('id', vendor_id);
-                }
-            }
-            
-            document.getElementById('expense-amount').value = '';
-            document.getElementById('expense-note').value = '';
-            Swal.fire({ title: 'Expense Recorded', text: 'Account balance has been updated.', icon: 'success', timer: 1500, showConfirmButton: false });
             await loadDashboardData();
         }
 
