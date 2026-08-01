@@ -156,7 +156,6 @@
         let isAdmin = false;
         let activeTab = 'vendors';
         
-        // Separated memory arrays
         let allVendors = [];
         let allFinances = [];
         
@@ -232,7 +231,7 @@
         async function fetchDirectory() {
             if (!currentShopId) return;
             
-            // Fetch everything, then split by type
+            // STRICT CLASSIFICATION: Fetch all accounts for this shop
             const { data: accounts, error } = await supabaseClient
                 .from('vendors')
                 .select('*')
@@ -240,7 +239,9 @@
                 .order('name', { ascending: true });
 
             if (!error && accounts) {
+                // Vendors = account_type is 'vendor' or NULL (for legacy items)
                 allVendors = accounts.filter(a => a.account_type === 'vendor' || !a.account_type);
+                // Finances = account_type is STRICTLY 'finance'
                 allFinances = accounts.filter(a => a.account_type === 'finance');
             }
             renderList();
@@ -294,8 +295,14 @@
             const tbody = document.getElementById('pb-history');
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history...</td></tr>`;
 
+            // 1. Fetch Dues/Installments
             const { data: bills } = await supabaseClient.from('vendor_bills').select('*').eq('vendor_id', vendorId).order('bill_date', { ascending: false });
-            const { data: payouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`).order('created_at', { ascending: false });
+            
+            // 2. Fetch Payments made from Reserve Vault
+            const { data: reservePayouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`).order('created_at', { ascending: false });
+            
+            // 3. STRICT CLASSIFICATION: Fetch Payments made from Shop Floor Dashboard (Cash or UPI)
+            const { data: floorPayouts } = await supabaseClient.from('daily_transactions').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false });
 
             rawHistoryData = [];
             
@@ -312,18 +319,31 @@
                 });
             }
 
-            if (payouts) {
-                payouts.forEach(p => {
+            if (reservePayouts) {
+                reservePayouts.forEach(p => {
                     if (p.amount < 0) { 
                         rawHistoryData.push({
                             dateStr: new Date(p.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
                             ref: p.reference_note || 'Payment Settled',
-                            type: `Payment (${p.transaction_type.replace('_', ' ')})`,
+                            type: `Reserve Vault Payment`,
                             amount: parseFloat(Math.abs(p.amount)),
                             isPositive: false, 
                             rawDate: new Date(p.created_at)
                         });
                     }
+                });
+            }
+
+            if (floorPayouts) {
+                floorPayouts.forEach(fp => {
+                    rawHistoryData.push({
+                        dateStr: new Date(fp.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        ref: fp.reference_note || 'Floor Payment',
+                        type: `Shop Floor Payout (${fp.payment_method})`,
+                        amount: parseFloat(Math.abs(fp.amount)),
+                        isPositive: false, 
+                        rawDate: new Date(fp.created_at)
+                    });
                 });
             }
 
@@ -354,7 +374,6 @@
         }
 
         async function openAddAccountModal() {
-            // Auto-select dropdown based on current active tab
             const isFin = activeTab === 'finances' ? 'selected' : '';
             const isVen = activeTab === 'vendors' ? 'selected' : '';
 
