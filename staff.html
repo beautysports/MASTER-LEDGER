@@ -5,42 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Management</title>
     <script src="supabase-init.js"></script>
-    <!-- SWEETALERT 2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         /* MINIMALIST & MOBILE-OPTIMIZED BASE */
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* THE FIX: The missing hidden class */
+        .hidden { display: none !important; }
+
+        /* PROFESSIONAL FULL-SCREEN LOADER */
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
+        .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #auth-message { color: #64748b; font-weight: 600; font-size: 1.1em; letter-spacing: 0.5px; }
+
         /* Flex changes to column on mobile */
         .main-content { flex-grow: 1; padding: 20px; display: flex; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; }
         
         /* DIRECTORY PANE */
         .directory-pane { width: 300px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; }
-        .pane-header { padding: 15px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
+        .pane-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
         .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; }
         
         .staff-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
         .staff-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; font-weight: 500; font-size: 0.9em; transition: 0.2s; }
         .staff-item:hover { background: #f3f4f6; }
-        .staff-item.active { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+        .staff-item.active { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; font-weight: 600; }
 
         /* DASHBOARD PANE */
         .dashboard-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: none; flex-direction: column; overflow: hidden; }
-        .dash-header { padding: 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .staff-name { font-size: 1.4em; font-weight: 700; margin: 0; }
-        .staff-role { font-size: 0.75em; color: #6b7280; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }
+        .dash-header { padding: 20px 25px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .staff-name { font-size: 1.5em; font-weight: 800; margin: 0; color: #0f172a; }
+        .staff-role { font-size: 0.75em; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
         
         /* SPLIT VIEW (Stacks on mobile) */
         .split-view { display: flex; flex-grow: 1; overflow: hidden; flex-direction: row; }
-        .calendar-section { flex: 1; padding: 20px; border-right: 1px solid #f3f4f6; overflow-y: auto; }
-        .history-section { flex: 1; padding: 20px; overflow-y: auto; background: #f9fafb; }
+        .calendar-section { flex: 1; padding: 25px; border-right: 1px solid #f3f4f6; overflow-y: auto; }
+        .history-section { flex: 1; padding: 25px; overflow-y: auto; background: #f8fafc; }
         
-        h4 { margin-top: 0; font-size: 0.95em; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; display: flex; justify-content: space-between;}
+        h4 { margin-top: 0; font-size: 0.95em; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; display: flex; justify-content: space-between;}
 
         /* 3-CLICK CALENDAR GRID */
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 15px; }
-        .cal-day-header { text-align: center; font-size: 0.7em; font-weight: 700; color: #9ca3af; text-transform: uppercase; }
-        .cal-cell { aspect-ratio: 1; border-radius: 6px; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9em; cursor: pointer; user-select: none; transition: 0.15s; background: #ffffff; color: #9ca3af; }
+        .cal-day-header { text-align: center; font-size: 0.75em; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+        .cal-cell { aspect-ratio: 1; border-radius: 8px; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95em; cursor: pointer; user-select: none; transition: 0.15s; background: #ffffff; color: #94a3b8; }
         .cal-cell.empty { border: none; background: transparent; cursor: default; }
 
         /* THE 3 STATES */
@@ -49,15 +57,13 @@
         .state-HALF { background: #f59e0b; border-color: #f59e0b; color: white; }
 
         /* HISTORY TABLE */
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-        .history-table th { text-align: left; padding: 10px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 600; }
-        .history-table td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; color: #1f2937; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
+        .history-table th { text-align: left; padding: 12px 10px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.8em; }
+        .history-table td { padding: 15px 10px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
 
-        button.btn { background: #111827; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 0.9em; }
-        button.btn:hover { background: #374151; }
+        button.btn { background: #0f172a; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
+        button.btn:hover { background: #334155; }
         
-        #unauthorized { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; text-align: center; color: #ef4444; font-weight: 600; font-size: 1.1em; padding: 20px; box-sizing: border-box; }
-
         /* --- MOBILE OPTIMIZATION --- */
         @media (max-width: 768px) {
             body { overflow: auto; }
@@ -66,7 +72,7 @@
             .dashboard-pane { width: 100%; overflow: visible; }
             .split-view { flex-direction: column; }
             .calendar-section { border-right: none; border-bottom: 1px solid #f3f4f6; }
-            .cal-cell { font-size: 1em; }
+            .cal-cell { font-size: 1.1em; border-radius: 6px; } 
         }
     </style>
 </head>
@@ -74,16 +80,20 @@
 
     <script src="navbar.js"></script>
 
-    <!-- ADMIN ONLY WRAPPER -->
-    <div id="unauthorized">Verifying Admin Credentials...</div>
+    <!-- PROFESSIONAL LOADING SCREEN -->
+    <div id="unauthorized" class="loader-container">
+        <div class="spinner" id="loading-spinner"></div>
+        <div id="auth-message">Verifying Admin Credentials...</div>
+    </div>
 
+    <!-- MAIN APP CONTENT (Hidden until verified) -->
     <main class="main-content hidden" id="admin-content">
         
         <!-- LEFT: STAFF DIRECTORY -->
         <div class="directory-pane">
             <div class="pane-header">
                 <h3>Staff Team</h3>
-                <button class="btn" onclick="Swal.fire('Coming Soon', 'Staff creation module is under construction.', 'info')">+ Add</button>
+                <button class="btn" onclick="addNewStaff()">+ Add</button>
             </div>
             <div class="staff-list" id="staff-list">
                 <div style="padding: 20px; text-align: center; color: #9ca3af;">Loading staff...</div>
@@ -110,8 +120,8 @@
                         <!-- BATCH SAVE BUTTON -->
                         <button id="save-attendance-btn" class="btn" style="background: #10b981; display: none;" onclick="saveAttendance()">Save Changes</button>
                     </div>
-                    <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 15px;">
-                        Tap a day to toggle: <span style="color:#10b981; font-weight:bold;">1. Full</span> | <span style="color:#ef4444; font-weight:bold;">2. Leave</span> | <span style="color:#f59e0b; font-weight:bold;">3. Half</span>
+                    <div style="font-size: 0.75em; color: #64748b; margin-bottom: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #f1f5f9;">
+                        <strong>Tap to toggle:</strong> <span style="color:#10b981; margin: 0 5px;">1. Full</span> | <span style="color:#ef4444; margin: 0 5px;">2. Leave</span> | <span style="color:#f59e0b; margin: 0 5px;">3. Half</span>
                     </div>
                     
                     <div class="cal-grid" id="calendar-grid">
@@ -144,8 +154,8 @@
         let currentShopId = null;
         let activeStaffId = null;
         let currentYear = new Date().getFullYear();
-        let currentMonth = new Date().getMonth(); // 0 = Jan, 11 = Dec
-        let originalAttendanceMap = {}; // Memory for batch saves
+        let currentMonth = new Date().getMonth(); 
+        let originalAttendanceMap = {}; 
 
         const STATES = ['NONE', 'FULL', 'LEAVE', 'HALF'];
 
@@ -155,7 +165,7 @@
                     const { data: userData, error: authError } = await supabaseClient.auth.getUser();
                     
                     if (authError || !userData || !userData.user) {
-                        document.getElementById('unauthorized').innerText = "ACCESS DENIED: Not logged in.";
+                        failAuth("ACCESS DENIED: Not logged in.");
                         return;
                     }
 
@@ -166,26 +176,67 @@
                         .single();
 
                     if (profileError) {
-                        document.getElementById('unauthorized').innerText = "Database Error: " + profileError.message;
+                        failAuth("Database Error: " + profileError.message);
                         return;
                     }
 
                     if (profile && profile.role === 'admin') {
                         currentShopId = profile.shop_id;
+                        
+                        // SUCCESS: Hide the loader, reveal the app
                         document.getElementById('unauthorized').classList.add('hidden');
                         document.getElementById('admin-content').classList.remove('hidden');
+                        
                         await loadStaffList();
                     } else {
-                        document.getElementById('unauthorized').innerText = "ACCESS DENIED: Admin Privileges Required.";
+                        failAuth("ACCESS DENIED: Admin Privileges Required.");
                     }
                 } catch (err) {
-                    document.getElementById('unauthorized').innerText = "System Error: " + err.message;
+                    failAuth("System Error: " + err.message);
                 }
-            }, 600);
+            }, 600); // 600ms delay prevents ugly flashes
         };
 
+        function failAuth(msg) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            const msgEl = document.getElementById('auth-message');
+            msgEl.innerText = msg;
+            msgEl.style.color = '#ef4444';
+        }
+
+        // --- NEW: ADD STAFF LOGIC ---
+        async function addNewStaff() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Add New Staff Member',
+                html: '<input id="swal-staff-name" class="swal2-input" placeholder="Staff Name (e.g. Rahul)">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Save Staff',
+                confirmButtonColor: '#0f172a',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-staff-name').value;
+                    if (!name) Swal.showValidationMessage('Please enter a name');
+                    return { name };
+                }
+            });
+
+            if (formValues && currentShopId) {
+                const { error } = await supabaseClient.from('staff').insert([{
+                    shop_id: currentShopId,
+                    name: formValues.name
+                }]);
+
+                if (error) {
+                    Swal.fire('Error', 'Could not add staff: ' + error.message, 'error');
+                } else {
+                    Swal.fire({ title: 'Success!', text: `${formValues.name} has been added to your team.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                    await loadStaffList();
+                }
+            }
+        }
+
         async function loadStaffList() {
-            const { data: staff, error } = await supabaseClient.from('staff').select('id, name').eq('shop_id', currentShopId);
+            const { data: staff, error } = await supabaseClient.from('staff').select('id, name').eq('shop_id', currentShopId).order('created_at', { ascending: true });
             const list = document.getElementById('staff-list');
             list.innerHTML = '';
 
@@ -196,10 +247,12 @@
 
             if (staff && staff.length > 0) {
                 staff.forEach(s => {
-                    list.innerHTML += `<div class="staff-item" onclick="openStaff('${s.id}', '${s.name}', this)">${s.name}</div>`;
+                    // Pre-select if we already had someone active
+                    const activeClass = (s.id === activeStaffId) ? 'active' : '';
+                    list.innerHTML += `<div class="staff-item ${activeClass}" onclick="openStaff('${s.id}', '${s.name}', this)">${s.name}</div>`;
                 });
             } else {
-                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #9ca3af;">No staff found.</div>`;
+                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #94a3b8;">No staff found. Click + Add to start.</div>`;
             }
         }
 
@@ -216,11 +269,10 @@
         }
 
         // --- CALENDAR UI & DATABASE BATCH SYNC ---
-        
         async function generateCalendar() {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
-            document.getElementById('save-attendance-btn').style.display = 'none'; // Hide save button initially
+            document.getElementById('save-attendance-btn').style.display = 'none'; 
             
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             document.getElementById('calendar-month-title').innerText = `${monthNames[currentMonth]} ${currentYear}`;
@@ -228,7 +280,6 @@
             const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
             days.forEach(d => grid.innerHTML += `<div class="cal-day-header">${d}</div>`);
 
-            // Fetch existing attendance
             const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
             const endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-31`;
             
@@ -239,11 +290,10 @@
                 .lte('record_date', endDate);
             
             if (error) {
-                console.error("Error fetching attendance:", error);
                 Swal.fire('Error', 'Failed to load attendance records.', 'error');
             }
 
-            originalAttendanceMap = {}; // Reset memory
+            originalAttendanceMap = {}; 
             if (records) {
                 records.forEach(r => { originalAttendanceMap[r.record_date] = r.status; });
             }
@@ -251,12 +301,10 @@
             const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); 
             const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-            // Pad blank days
             for(let i = 0; i < firstDayIndex; i++) {
                 grid.innerHTML += `<div class="cal-cell empty"></div>`;
             }
 
-            // Generate actual days
             for (let day = 1; day <= totalDaysInMonth; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const savedStatus = originalAttendanceMap[dateStr] || 'NONE';
@@ -279,12 +327,10 @@
             let nextStateIdx = (currentStateIdx + 1) % STATES.length;
             const stateName = STATES[nextStateIdx];
             
-            // Instantly update UI
             element.setAttribute('data-state', nextStateIdx);
             element.classList.remove('state-FULL', 'state-LEAVE', 'state-HALF');
             if (stateName !== 'NONE') element.classList.add(`state-${stateName}`);
             
-            // Reveal the Save button
             document.getElementById('save-attendance-btn').style.display = 'block';
         }
 
@@ -297,7 +343,6 @@
             const upserts = [];
             const deletes = [];
 
-            // Scan the grid for changes
             document.querySelectorAll('.cal-cell:not(.empty)').forEach(cell => {
                 const dateStr = cell.getAttribute('data-date');
                 const stateIdx = parseInt(cell.getAttribute('data-state'));
@@ -318,13 +363,11 @@
                 }
             });
 
-            // Execute Batch Saves
             if (upserts.length > 0) {
                 const { error } = await supabaseClient.from('staff_attendance').upsert(upserts, { onConflict: 'staff_id,record_date' });
                 if (error) return Swal.fire('Error', 'Failed to save attendance: ' + error.message, 'error');
             }
 
-            // Execute Batch Deletes
             if (deletes.length > 0) {
                 const { error } = await supabaseClient.from('staff_attendance')
                     .delete()
@@ -333,17 +376,13 @@
                 if (error) return Swal.fire('Error', 'Failed to clear attendance: ' + error.message, 'error');
             }
 
-            // Reset UI
             btn.innerText = "Saved!";
             btn.style.background = "#059669";
             
-            setTimeout(() => {
-                generateCalendar(); 
-            }, 800);
+            setTimeout(() => { generateCalendar(); }, 800);
         }
 
         // --- PAYMENT HISTORY LOGIC ---
-
         async function loadPaymentHistory() {
             const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select('created_at, amount, payment_method')
@@ -361,8 +400,8 @@
                     tbody.innerHTML += `
                         <tr>
                             <td>${date}</td>
-                            <td style="font-size: 0.85em; color: #6b7280;">${txn.payment_method}</td>
-                            <td style="text-align: right; font-weight: 600; color: #dc2626;">₹ ${parseFloat(txn.amount).toFixed(2)}</td>
+                            <td style="font-size: 0.85em; color: #64748b; font-weight: 600;">${txn.payment_method}</td>
+                            <td style="text-align: right; font-weight: 700; color: #0f172a;">₹ ${parseFloat(txn.amount).toFixed(2)}</td>
                         </tr>
                     `;
                 });
@@ -372,7 +411,6 @@
         }
 
         async function logStaffPayment() {
-            // Using SweetAlert for the Input Prompt
             const { value: amountStr } = await Swal.fire({
                 title: 'Record Staff Payment',
                 input: 'number',
@@ -380,7 +418,7 @@
                 inputPlaceholder: 'e.g. 5000',
                 showCancelButton: true,
                 confirmButtonText: 'Next',
-                confirmButtonColor: '#10b981'
+                confirmButtonColor: '#0f172a'
             });
 
             if (!amountStr) return;
@@ -389,20 +427,18 @@
                 return Swal.fire('Invalid Amount', 'Please enter a valid number greater than 0.', 'error');
             }
 
-            // Using SweetAlert for the Confirmation
             const confirmResult = await Swal.fire({
                 title: 'Confirm Payment',
-                text: `You are about to record a cash payment of ₹${amount} to this staff member. Proceed?`,
+                text: `Record a cash payment of ₹${amount} to this staff member?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#10b981',
                 cancelButtonColor: '#ef4444',
-                confirmButtonText: 'Yes, log payment!'
+                confirmButtonText: 'Yes, log payment'
             });
 
             if (!confirmResult.isConfirmed) return;
 
-            // Submit to Database
             const { error } = await supabaseClient.from('daily_transactions').insert([{
                 shop_id: currentShopId,
                 staff_id: activeStaffId,
@@ -410,23 +446,15 @@
                 category: 'staff',
                 payment_method: 'CASH',
                 amount: amount,
-                reference_note: 'Staff Payout (Admin)',
-                status: 'open'
+                reference_note: 'Staff Payout',
+                status: 'open' // Logs it directly to the active shop floor drawer!
             }]);
 
             if (error) {
                 return Swal.fire('Error', 'Failed to save payment: ' + error.message, 'error');
             }
             
-            // Success Notification
-            Swal.fire({
-                title: 'Success!',
-                text: 'Payment recorded successfully.',
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false
-            });
-            
+            Swal.fire({ title: 'Success!', text: 'Payment logged to today\'s drawer.', icon: 'success', timer: 1500, showConfirmButton: false });
             await loadPaymentHistory(); 
         }
     </script>
