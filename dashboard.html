@@ -384,7 +384,7 @@
             await loadDashboardData();
         }
 
-        async function submitExpense() { 
+       async function submitExpense() { 
             if(!currentShopId) return;
             const category = document.getElementById('expense-category').value;
             const method = document.getElementById('expense-method').value;
@@ -405,6 +405,50 @@
                 vendor_id = document.getElementById('finance-select').value; 
                 if (!vendor_id) return Swal.fire('Missing Finance Account', 'Please select a Finance / Kuri account.', 'warning');
             }
+
+            // 1. Log Daily Transaction (The Ledger)
+            const { error: insertErr } = await supabaseClient.from('daily_transactions').insert([{
+                shop_id: currentShopId, 
+                transaction_type: 'EXPENSE', 
+                category: category, 
+                payment_method: method, 
+                amount: amount, 
+                reference_note: note, 
+                vendor_id: vendor_id, 
+                staff_id: staff_id,
+                status: 'open',
+                created_at: getSubmissionTimestamp()
+            }]);
+
+            if (insertErr) return Swal.fire('Ledger Error', insertErr.message, 'error');
+
+            // 2. STRICT CLASSIFICATION: Instantly deduct from Account / Finance balance
+            if (vendor_id) {
+                // Fetch the current balance securely
+                const { data: vData, error: fetchErr } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendor_id).single();
+                
+                if (fetchErr) {
+                    Swal.fire('Sync Error', 'Could not fetch current balance: ' + fetchErr.message, 'error');
+                } else if (vData) {
+                    const newBal = parseFloat(vData.outstanding_balance || 0) - amount;
+                    
+                    // Push the new balance to the database
+                    const { error: updateErr } = await supabaseClient.from('vendors').update({ outstanding_balance: newBal }).eq('id', vendor_id);
+                    
+                    // If the database blocks the update, scream loudly
+                    if (updateErr) {
+                        return Swal.fire('Database Firewall Blocked Update', updateErr.message, 'error');
+                    }
+                }
+            }
+            
+            // Clean up and refresh
+            document.getElementById('expense-amount').value = '';
+            document.getElementById('expense-note').value = '';
+            Swal.fire({ title: 'Expense Recorded', text: 'Account balance has been synced.', icon: 'success', timer: 1500, showConfirmButton: false });
+            
+            await loadDashboardData();
+        }
 
             // 1. Log Daily Transaction
             const { error } = await supabaseClient.from('daily_transactions').insert([{
