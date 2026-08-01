@@ -3,135 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Ledger</title>
+    <title>Master Ledger & Daily Closing</title>
     <script src="supabase-init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* Base & Sidebar Layout */
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
-        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Dashboard Replica UI */
-        .summary-box { background: #0f172a; padding: 35px 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-bottom: 30px; text-align: center; color: white; }
-        .master-label { color: #94a3b8; font-size: 0.85em; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; }
-        .master-balance { font-size: 3.5em; font-weight: 800; color: #fbbf24; margin: 0; letter-spacing: -2px; }
-
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-        .card-full { grid-column: span 2; }
-        
-        h3 { margin-top: 0; color: #0f172a; font-weight: 700; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        input, select { width: 100%; padding: 12px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; transition: 0.2s; }
-        input:focus, select:focus { border-color: #3b82f6; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        
-        button.action-btn { color: #fff; border: none; cursor: pointer; font-weight: 700; margin-top: 25px; padding: 14px; border-radius: 8px; width: 100%; font-size: 0.95em; transition: 0.2s; }
-        .btn-green { background-color: #10b981; } .btn-green:hover { background-color: #059669; }
-        .btn-red { background-color: #ef4444; } .btn-red:hover { background-color: #dc2626; }
-
         .hidden { display: none !important; }
+
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
+        .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #auth-message { color: #64748b; font-weight: 600; font-size: 1.1em; letter-spacing: 0.5px; }
+
+        .main-content { flex-grow: 1; padding: 25px; display: flex; flex-direction: column; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; overflow-y: auto; }
         
-        /* History & Search */
-        .search-bar { width: 250px; padding: 8px 12px; margin-top: 0; font-size: 0.85em; border-radius: 20px; }
-        .history-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; }
-        .history-table th { text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; text-transform: uppercase; font-size: 0.75em; }
-        .history-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-        .text-green { color: #10b981; font-weight: 700; }
-        .text-red { color: #ef4444; font-weight: 700; }
+        /* TOP BALANCE CARD */
+        .vault-card { background: #ffffff; padding: 30px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .vault-title { font-size: 0.75em; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .vault-amount { font-size: 2.5em; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -1px; }
+        
+        .vault-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        /* FILTER & CONTROL BAR */
+        .control-bar { background: #ffffff; padding: 15px 20px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        
+        input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9em; outline: none; background: #f9fafb; color: #111827; }
+        input:focus, select:focus { border-color: #111827; background: #fff; }
+
+        /* LEDGER TABLE */
+        .table-container { background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .table-header-bar { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
+        .table-header-bar h3 { margin: 0; font-size: 1em; font-weight: 600; }
+        
+        .history-container { overflow-y: auto; flex-grow: 1; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .history-table th { text-align: left; padding: 12px 20px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.75em; background: #ffffff; position: sticky; top: 0; }
+        .history-table td { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
+
+        button.btn { background: #0f172a; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85em; transition: 0.2s; }
+        button.btn:hover { background: #334155; }
+        button.btn-outline { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
+        button.btn-outline:hover { background: #f8fafc; }
+        button.btn-green { background: #10b981; }
+        button.btn-green:hover { background: #047857; }
+
+        .text-green { color: #059669; font-weight: 700; }
+        .text-red { color: #dc2626; font-weight: 700; }
+
+        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 40px; flex-direction: column; }
 
         @media (max-width: 768px) {
-            body { flex-direction: column; }
-            .action-grid { grid-template-columns: 1fr; }
-            .card-full { grid-column: span 1; }
-            .search-bar { width: 100%; margin-top: 15px; }
-            h3 { flex-direction: column; align-items: flex-start; }
+            body { overflow: auto; height: auto; }
+            .main-content { height: auto; overflow: visible; padding: 15px; }
+            .vault-card { flex-direction: column; align-items: flex-start; }
+            .vault-actions { width: 100%; }
+            .vault-actions button { flex: 1; }
+            .control-bar { flex-direction: column; align-items: stretch; }
+            .filter-group { width: 100%; flex-direction: column; }
+            .filter-group input, .filter-group select { width: 100%; }
         }
     </style>
 </head>
 <body>
 
-    <!-- INJECT NAVBAR -->
     <script src="navbar.js"></script>
 
-    <main class="main-content">
+    <div id="unauthorized" class="loader-container">
+        <div class="spinner" id="loading-spinner"></div>
+        <div id="auth-message">Verifying Master Ledger Access...</div>
+    </div>
+
+    <main class="main-content hidden" id="admin-content">
         
-        <!-- TOP: LIVE LEDGER BALANCE -->
-        <div class="summary-box">
-            <div class="master-label">Master Vault Balance</div>
-            <div class="master-balance">₹ <span id="ledger-balance">0.00</span></div>
+        <!-- TOP RESERVE / VAULT SUMMARY CARD -->
+        <div class="vault-card">
+            <div>
+                <div class="vault-title">Total Reserve Fund (Vault)</div>
+                <div class="vault-amount">₹ <span id="vault-balance">0.00</span></div>
+            </div>
+            <div class="vault-actions">
+                <button class="btn btn-green" onclick="openAddFundsModal()">+ Add Money to Reserve</button>
+                <button class="btn btn-outline" onclick="openWithdrawModal()">- Withdraw Money</button>
+            </div>
         </div>
 
-        <!-- MIDDLE: THE ACTION GRID (DASHBOARD REPLICA) -->
-        <div class="action-grid">
+        <!-- CONTROLS & FILTER BAR -->
+        <div class="control-bar">
+            <div class="filter-group">
+                <label style="font-size: 0.8em; font-weight: 700; color: #64748b; text-transform: uppercase;">View Source:</label>
+                <select id="ledger-source-filter" onchange="applyFilters()">
+                    <option value="ALL">All Transactions (Main & Daily)</option>
+                    <option value="RESERVE">Reserve Vault Adjustments</option>
+                    <option value="DAILY">Daily Shop Floor Closings</option>
+                </select>
+                
+                <input type="date" id="filter-date-start" onchange="applyFilters()">
+                <span style="color: #9ca3af; font-size: 0.85em;">to</span>
+                <input type="date" id="filter-date-end" onchange="applyFilters()">
+            </div>
+
+            <button class="btn btn-outline" onclick="downloadLedgerPDF()">Download PDF Statement</button>
+        </div>
+
+        <!-- TRANSACTION TABLE -->
+        <div class="table-container">
+            <div class="table-header-bar">
+                <h3 id="table-heading">Complete Ledger History</h3>
+                <span style="font-size: 0.8em; color: #64748b;" id="record-count">Loading entries...</span>
+            </div>
             
-            <!-- CREDIT (MONEY IN) -->
-            <div class="card" style="border-top: 4px solid #10b981;">
-                <h3 style="border-bottom-color: #d1fae5;">Credit Ledger (Money In)</h3>
-                
-                <label>Category</label>
-                <select id="credit-category">
-                    <option value="CAPITAL">Owner Capital Injection</option>
-                    <option value="MANUAL_SWEEP">Manual Shop Sweep</option>
-                    <option value="MISC_IN">Miscellaneous Income</option>
-                </select>
-
-                <label>Amount (₹)</label>
-                <input type="number" id="credit-amount" placeholder="0.00">
-
-                <label>Reference Note</label>
-                <input type="text" id="credit-note" placeholder="e.g., Added funds for rent">
-
-                <button class="action-btn btn-green" onclick="submitCredit()">Add Funds</button>
-            </div>
-
-            <!-- DEBIT (MONEY OUT) -->
-            <div class="card" style="border-top: 4px solid #ef4444;">
-                <h3 style="border-bottom-color: #fee2e2;">Debit Ledger (Money Out)</h3>
-                
-                <label>Category</label>
-                <select id="debit-category" onchange="toggleVendorField()">
-                    <option value="none" selected disabled>Select...</option>
-                    <option value="VENDOR">Vendor</option>
-                    <option value="DRAWINGS">Drawings</option>
-                    <option value="FINANCE">Finance / EMI</option>
-                    <option value="MISC_OUT">Miscellaneous</option>
-                </select>
-
-                <div id="vendor-group" class="hidden">
-                    <label>Select Vendor</label>
-                    <select id="vendor-select">
-                        <option value="">Loading vendors...</option>
-                    </select>
-                </div>
-
-                <label>Amount (₹)</label>
-                <input type="number" id="debit-amount" placeholder="0.00">
-
-                <label>Reference Note</label>
-                <input type="text" id="debit-note" placeholder="e.g., Settled bill #104">
-
-                <button class="action-btn btn-red" onclick="submitDebit()">Deduct Funds</button>
-            </div>
-        </div>
-
-        <!-- BOTTOM: HISTORY WITH SEARCH -->
-        <div class="action-grid">
-            <div class="card card-full">
-                <h3>
-                    Recent Transactions
-                    <input type="text" id="search-history" class="search-bar" placeholder="Search by note, type, or amount..." onkeyup="filterHistory()">
-                </h3>
+            <div class="history-container" id="pdf-export-area">
                 <table class="history-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Category</th>
-                            <th>Reference</th>
+                            <th>Date & Time</th>
+                            <th>Source</th>
+                            <th>Description / Reference</th>
+                            <th>Type</th>
                             <th style="text-align: right;">Amount (₹)</th>
                         </tr>
                     </thead>
-                    <tbody id="history-body">
-                        <tr><td colspan="4" style="text-align:center;">Loading history...</td></tr>
+                    <tbody id="ledger-body">
+                        <tr><td colspan="5" class="empty-state">Loading transaction history...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -139,137 +135,279 @@
 
     </main>
 
-    <!-- CORE LOGIC -->
     <script>
         let currentShopId = null;
-        let currentLedgerBalance = 0;
+        let isAdmin = false;
+        let masterTransactions = []; // Holds consolidated ledger history
 
-        // UI Toggle
-        function toggleVendorField() {
-            const category = document.getElementById('debit-category').value;
-            const vendorGroup = document.getElementById('vendor-group');
-            if (category === 'VENDOR') vendorGroup.classList.remove('hidden');
-            else vendorGroup.classList.add('hidden');
-        }
-
-        // Live Search Filter
-        function filterHistory() {
-            const input = document.getElementById('search-history').value.toLowerCase();
-            const rows = document.getElementById('history-body').getElementsByTagName('tr');
-            for (let i = 0; i < rows.length; i++) {
-                const rowText = rows[i].innerText.toLowerCase();
-                rows[i].style.display = rowText.includes(input) ? '' : 'none';
-            }
-        }
-
-        // Initialize
         window.onload = () => {
             setTimeout(async () => {
-                const { data: shopData } = await supabaseClient.from('shops').select('id, master_ledger_balance').single();
-                if (shopData) {
-                    currentShopId = shopData.id;
-                    currentLedgerBalance = parseFloat(shopData.master_ledger_balance || 0);
-                    document.getElementById('ledger-balance').innerText = currentLedgerBalance.toFixed(2);
-                    
-                    await loadLedgerVendors(currentShopId);
-                    await loadHistory(currentShopId);
+                try {
+                    const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+                    if (authError || !userData || !userData.user) {
+                        failAuth("ACCESS DENIED: Not logged in.");
+                        return;
+                    }
+
+                    const { data: profile, error: profileError } = await supabaseClient
+                        .from('user_profiles')
+                        .select('role, shop_id')
+                        .eq('id', userData.user.id)
+                        .single();
+
+                    if (profileError) {
+                        failAuth("Database Error: " + profileError.message);
+                        return;
+                    }
+
+                    currentShopId = profile.shop_id;
+                    isAdmin = (profile.role === 'admin');
+
+                    if (!isAdmin) {
+                        failAuth("ACCESS DENIED: Owner privileges required.");
+                        return;
+                    }
+
+                    document.getElementById('unauthorized').classList.add('hidden');
+                    document.getElementById('admin-content').classList.remove('hidden');
+
+                    // Set default filter date range to current month
+                    const now = new Date();
+                    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                    const today = now.toISOString().split('T')[0];
+                    document.getElementById('filter-date-start').value = firstDay;
+                    document.getElementById('filter-date-end').value = today;
+
+                    await loadMasterLedgerData();
+                } catch (err) {
+                    failAuth("System Error: " + err.message);
                 }
-            }, 500); 
+            }, 600);
         };
 
-        async function loadLedgerVendors(shopId) {
-            const { data: vendors } = await supabaseClient.from('vendors').select('id, name, outstanding_balance').eq('shop_id', shopId);
-            const vendorSelect = document.getElementById('vendor-select');
-            vendorSelect.innerHTML = '<option value="none" selected disabled>Choose Vendor...</option>';
-            if (vendors) {
-                vendors.forEach(v => {
-                    vendorSelect.innerHTML += `<option value="${v.id}">${v.name} (Owes: ₹${v.outstanding_balance || 0})</option>`;
-                });
-            }
+        function failAuth(msg) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            const msgEl = document.getElementById('auth-message');
+            msgEl.innerText = msg;
+            msgEl.style.color = '#ef4444';
         }
 
-        async function loadHistory(shopId) {
-            const { data: logs } = await supabaseClient.from('master_ledger_logs')
-                .select('*').eq('shop_id', shopId).order('created_at', { ascending: false }).limit(30);
-            
-            const tbody = document.getElementById('history-body');
-            tbody.innerHTML = '';
+        async function loadMasterLedgerData() {
+            if (!currentShopId) return;
 
-            if (logs && logs.length > 0) {
-                logs.forEach(log => {
-                    const isCredit = log.amount > 0;
-                    const colorClass = isCredit ? 'text-green' : 'text-red';
-                    const sign = isCredit ? '+' : '';
-                    const dateStr = new Date(log.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            // 1. Fetch Shop Reserve Balance
+            const { data: shopData } = await supabaseClient
+                .from('shops')
+                .select('master_ledger_balance')
+                .eq('id', currentShopId)
+                .single();
+
+            const reserveBal = parseFloat(shopData?.master_ledger_balance || 0);
+            document.getElementById('vault-balance').innerText = reserveBal.toFixed(2);
+
+            masterTransactions = [];
+
+            // 2. Fetch Reserve / Vault adjustments from master_ledger_logs
+            const { data: reserveLogs } = await supabaseClient
+                .from('master_ledger_logs')
+                .select('*')
+                .eq('shop_id', currentShopId)
+                .order('created_at', { ascending: false });
+
+            if (reserveLogs) {
+                reserveLogs.forEach(log => {
+                    const amt = parseFloat(log.amount);
+                    masterTransactions.push({
+                        id: log.id,
+                        date: new Date(log.created_at),
+                        dateStr: new Date(log.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        source: 'RESERVE',
+                        sourceLabel: 'Reserve Vault',
+                        ref: log.reference_note || 'Vault Adjustment',
+                        type: amt >= 0 ? 'INCOME' : 'EXPENSE',
+                        amount: Math.abs(amt)
+                    });
+                });
+            }
+
+            // 3. Fetch Daily Shop Floor Closings & Transactions from daily_transactions
+            const { data: dailyTxns } = await supabaseClient
+                .from('daily_transactions')
+                .select('*')
+                .eq('shop_id', currentShopId)
+                .order('created_at', { ascending: false });
+
+            if (dailyTxns) {
+                dailyTxns.forEach(txn => {
+                    const amt = parseFloat(txn.amount);
+                    const isClosing = txn.reference_note && txn.reference_note.includes('Daily Cash Closing');
                     
+                    masterTransactions.push({
+                        id: txn.id,
+                        date: new Date(txn.created_at),
+                        dateStr: new Date(txn.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        source: 'DAILY',
+                        sourceLabel: isClosing ? 'Daily Closing' : 'Shop Floor Entry',
+                        ref: txn.reference_note || `${txn.transaction_type} (${txn.payment_method})`,
+                        type: txn.transaction_type,
+                        amount: amt
+                    });
+                });
+            }
+
+            // Sort newest first
+            masterTransactions.sort((a, b) => b.date - a.date);
+
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const sourceFilter = document.getElementById('ledger-source-filter').value;
+            const startDateStr = document.getElementById('filter-date-start').value;
+            const endDateStr = document.getElementById('filter-date-end').value;
+
+            const startDate = startDateStr ? new Date(startDateStr) : null;
+            const endDate = endDateStr ? new Date(endDateStr) : null;
+            if (endDate) endDate.setHours(23, 59, 59, 999); // Include full end day
+
+            let filtered = masterTransactions.filter(item => {
+                if (sourceFilter !== 'ALL' && item.source !== sourceFilter) return false;
+                if (startDate && item.date < startDate) return false;
+                if (endDate && item.date > endDate) return false;
+                return true;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('ledger-body');
+            tbody.innerHTML = '';
+            document.getElementById('record-count').innerText = `Showing ${data.length} records`;
+
+            if (data.length > 0) {
+                data.forEach(item => {
+                    const isIncome = item.type === 'INCOME';
+                    const colorClass = isIncome ? 'text-green' : 'text-red';
+                    const sign = isIncome ? '+' : '-';
+
                     tbody.innerHTML += `
                         <tr>
-                            <td style="font-size: 0.85em; color: #64748b;">${dateStr}</td>
-                            <td><strong>${log.transaction_type}</strong></td>
-                            <td>${log.reference_note || '-'}</td>
-                            <td class="${colorClass}" style="text-align: right;">${sign} ${parseFloat(log.amount).toFixed(2)}</td>
+                            <td>${item.dateStr}</td>
+                            <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 700; color: #475569;">${item.sourceLabel}</span></td>
+                            <td>${item.ref}</td>
+                            <td><strong>${item.type}</strong></td>
+                            <td style="text-align: right;" class="${colorClass}">${sign} ₹ ${item.amount.toFixed(2)}</td>
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No history found.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No transactions found matching the selected filters.</td></tr>`;
             }
         }
 
-        async function submitCredit() {
-            if(!currentShopId) return;
-            const category = document.getElementById('credit-category').value;
-            const amount = parseFloat(document.getElementById('credit-amount').value);
-            const note = document.getElementById('credit-note').value || 'System Credit';
-            
-            if(!amount || amount <= 0) return alert("Enter a valid amount.");
+        // --- MANUAL RESERVE VAULT ACTIONS ---
+        async function openAddFundsModal() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Add Money to Reserve Vault',
+                html: `
+                    <input id="swal-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
+                    <input id="swal-note" class="swal2-input" placeholder="Reference Note (e.g., Owner Capital Injection)">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Add Funds',
+                confirmButtonColor: '#10b981',
+                preConfirm: () => {
+                    const amount = parseFloat(document.getElementById('swal-amt').value);
+                    if (!amount || amount <= 0) {
+                        Swal.showValidationMessage('Enter a valid amount');
+                        return false;
+                    }
+                    return {
+                        amount: amount,
+                        note: document.getElementById('swal-note').value || 'Reserve Fund Deposit'
+                    };
+                }
+            });
 
-            const newBalance = currentLedgerBalance + amount;
-            
-            // 1. Update Vault Balance
-            await supabaseClient.from('shops').update({ master_ledger_balance: newBalance }).eq('id', currentShopId);
-            // 2. Log History
-            await supabaseClient.from('master_ledger_logs').insert([{ shop_id: currentShopId, transaction_type: category, reference_note: note, amount: amount }]);
+            if (formValues) {
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
+                const newReserve = currentReserve + formValues.amount;
 
-            document.getElementById('credit-amount').value = '';
-            document.getElementById('credit-note').value = '';
-            window.location.reload();
+                await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
+
+                await supabaseClient.from('master_ledger_logs').insert([{
+                    shop_id: currentShopId,
+                    transaction_type: 'DEPOSIT',
+                    reference_note: formValues.note,
+                    amount: formValues.amount
+                }]);
+
+                Swal.fire({ title: 'Success!', text: `Added ₹${formValues.amount} to Reserve.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                await loadMasterLedgerData();
+            }
         }
 
-        async function deductFromLedger() {
-            if(!currentShopId) return;
-            const category = document.getElementById('debit-category').value;
-            const amount = parseFloat(document.getElementById('debit-amount').value);
-            const note = document.getElementById('debit-note').value || 'System Debit';
-            
-            if(category === 'none') return alert("Select a category.");
-            if(!amount || amount <= 0) return alert("Enter a valid amount.");
-            if(amount > currentLedgerBalance) return alert("Insufficient funds in the Master Ledger.");
+        async function openWithdrawModal() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Withdraw Money from Reserve',
+                html: `
+                    <input id="swal-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
+                    <input id="swal-note" class="swal2-input" placeholder="Reference Note (e.g., Owner Withdrawal)">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Withdraw',
+                confirmButtonColor: '#ef4444',
+                preConfirm: () => {
+                    const amount = parseFloat(document.getElementById('swal-amt').value);
+                    if (!amount || amount <= 0) {
+                        Swal.showValidationMessage('Enter a valid amount');
+                        return false;
+                    }
+                    return {
+                        amount: amount,
+                        note: document.getElementById('swal-note').value || 'Reserve Fund Withdrawal'
+                    };
+                }
+            });
 
-            let vendorId = null;
-            if (category === 'VENDOR') {
-                vendorId = document.getElementById('vendor-select').value;
-                if(vendorId === 'none') return alert("Select a vendor.");
+            if (formValues) {
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
+
+                if (formValues.amount > currentReserve) {
+                    return Swal.fire('Insufficient Funds', 'Not enough balance in the Reserve Vault.', 'error');
+                }
+
+                const newReserve = currentReserve - formValues.amount;
+
+                await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
+
+                await supabaseClient.from('master_ledger_logs').insert([{
+                    shop_id: currentShopId,
+                    transaction_type: 'WITHDRAWAL',
+                    reference_note: formValues.note,
+                    amount: -formValues.amount
+                }]);
+
+                Swal.fire({ title: 'Success!', text: `Withdrew ₹${formValues.amount} from Reserve.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                await loadMasterLedgerData();
             }
+        }
 
-            const newBalance = currentLedgerBalance - amount;
-            
-            // 1. Update Vault Balance
-            await supabaseClient.from('shops').update({ master_ledger_balance: newBalance }).eq('id', currentShopId);
-            
-            // 2. Update Vendor Balance if applicable
-            if (vendorId) {
-                const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorId).single();
-                const currentOwed = parseFloat(vData.outstanding_balance || 0);
-                await supabaseClient.from('vendors').update({ outstanding_balance: currentOwed - amount }).eq('id', vendorId);
-            }
-
-            // 3. Log History (Negative Amount)
-            await supabaseClient.from('master_ledger_logs').insert([{ shop_id: currentShopId, transaction_type: category, reference_note: note, amount: -amount }]);
-
-            document.getElementById('debit-amount').value = '';
-            document.getElementById('debit-note').value = '';
-            window.location.reload();
+        function downloadLedgerPDF() {
+            const element = document.getElementById('pdf-export-area');
+            const opt = {
+                margin:       10,
+                filename:     `Master_Ledger_Statement.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().from(element).set(opt).save();
         }
     </script>
 </body>
