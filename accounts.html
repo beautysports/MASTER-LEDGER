@@ -5,67 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accounts & Vendors</title>
     <script src="supabase-init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        /* MINIMALIST BASE */
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; height: 100vh; overflow: hidden; }
-        .main-content { flex-grow: 1; padding: 30px; display: flex; gap: 25px; height: calc(100vh - 60px); }
+        /* MINIMALIST & MOBILE-OPTIMIZED BASE */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* LAYOUT PANES */
-        .directory-pane { width: 320px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; }
-        .right-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .hidden { display: none !important; }
+
+        /* FULL-SCREEN LOADER */
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
+        .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #auth-message { color: #64748b; font-weight: 600; font-size: 1.1em; letter-spacing: 0.5px; }
+
+        /* MAIN CONTENT LAYOUT */
+        .main-content { flex-grow: 1; padding: 20px; display: flex; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; }
         
-        /* DIRECTORY (LEFT) */
+        /* DIRECTORY PANE (LEFT) */
+        .directory-pane { width: 320px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; }
         .pane-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
         .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; }
         
         .tab-group { display: flex; border-bottom: 1px solid #f3f4f6; }
-        .tab { flex: 1; padding: 10px; text-align: center; font-size: 0.8em; font-weight: 600; color: #6b7280; cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; }
+        .tab { flex: 1; padding: 12px; text-align: center; font-size: 0.8em; font-weight: 700; color: #6b7280; cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; background: #ffffff; }
         .tab.active { color: #111827; border-bottom-color: #111827; background: #f9fafb; }
         
         .account-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
-        .account-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; }
+        .account-item { padding: 14px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; transition: 0.2s; }
         .account-item:hover { background: #f3f4f6; }
-        .account-item.active { background: #f0fdf4; border-color: #bbf7d0; }
-        .acc-name { font-weight: 500; font-size: 0.9em; }
-        .acc-bal { font-size: 0.85em; font-weight: 600; color: #dc2626; }
+        .account-item.active { background: #eff6ff; border-color: #bfdbfe; }
+        .acc-name { font-weight: 600; font-size: 0.95em; color: #0f172a; }
+        .acc-bal { font-size: 0.85em; font-weight: 700; color: #dc2626; }
 
-        /* VIEW: PASSBOOK (RIGHT) */
-        .passbook-view { display: none; flex-direction: column; height: 100%; }
-        .pb-header { padding: 25px; text-align: center; border-bottom: 1px solid #f3f4f6; }
-        .pb-type { font-size: 0.75em; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }
-        .pb-name { font-size: 1.5em; font-weight: 700; margin: 5px 0; }
-        .pb-bal { font-size: 2.5em; font-weight: 700; color: #dc2626; margin-top: 10px; letter-spacing: -1px; }
+        /* PASSBOOK PANE (RIGHT) */
+        .passbook-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: none; flex-direction: column; overflow: hidden; }
+        .pb-header { padding: 25px; text-align: center; border-bottom: 1px solid #f3f4f6; background: #ffffff; }
+        .pb-type { font-size: 0.75em; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .pb-name { font-size: 1.6em; font-weight: 800; margin: 5px 0; color: #0f172a; }
+        .pb-meta { font-size: 0.85em; color: #6b7280; margin-top: 5px; }
+        .pb-bal-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid #f3f4f6; }
+        .pb-bal-label { font-size: 0.75em; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .pb-bal { font-size: 2.2em; font-weight: 800; color: #dc2626; margin-top: 2px; letter-spacing: -1px; }
         
-        .pb-actions { display: flex; gap: 15px; justify-content: center; padding: 15px; background: #f9fafb; border-bottom: 1px solid #f3f4f6; }
+        .pb-actions { display: flex; gap: 15px; justify-content: center; padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #f3f4f6; }
         
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-        .history-table th { text-align: left; padding: 12px 20px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 0.9em; }
-        .history-table td { padding: 12px 20px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
+        .history-container { overflow-y: auto; flex-grow: 1; padding: 0; background: #ffffff; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .history-table th { text-align: left; padding: 12px 20px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.75em; }
+        .history-table td { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
 
-        /* VIEW: CREATE ACCOUNT (RIGHT) */
-        .create-view { display: none; flex-direction: column; padding: 30px; max-width: 500px; margin: 0 auto; width: 100%; }
-        .create-view h2 { margin-top: 0; font-size: 1.2em; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px; }
-        
-        label { display: block; font-size: 0.8em; font-weight: 600; color: #4b5563; margin-top: 15px; margin-bottom: 5px; }
-        input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; font-size: 0.95em; outline: none; box-sizing: border-box; }
-        input:focus { border-color: #111827; background: #fff; }
-        
-        .help-text { font-size: 0.75em; color: #9ca3af; margin-top: 4px; display: block; }
+        /* BUTTONS */
+        button.btn { background: #0f172a; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
+        button.btn:hover { background: #334155; }
+        button.btn-outline { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
+        button.btn-outline:hover { background: #f8fafc; }
+        button.btn-green { background: #10b981; }
+        button.btn-green:hover { background: #059669; }
 
-        /* UTILS */
-        .hidden { display: none !important; }
-        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.9em; text-align: center; padding: 20px; flex-direction: column; }
-        
-        button.btn { background: #111827; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 0.9em; }
-        button.btn:hover { background: #374151; }
-        button.btn-outline { background: #fff; color: #111827; border: 1px solid #d1d5db; }
-        button.btn-outline:hover { background: #f9fafb; }
-        button.btn-green { background: #059669; }
-        button.btn-green:hover { background: #047857; }
-        
+        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 30px; flex-direction: column; }
+
+        /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 768px) {
-            .main-content { flex-direction: column; height: auto; }
-            .directory-pane { width: 100%; height: 350px; }
+            body { overflow: auto; }
+            .main-content { flex-direction: column; height: auto; overflow: visible; padding: 15px; }
+            .directory-pane { width: 100%; height: 280px; flex-shrink: 0; }
+            .passbook-pane { width: 100%; overflow: visible; }
+            .pb-bal { font-size: 1.8em; }
         }
     </style>
 </head>
@@ -73,14 +78,20 @@
 
     <script src="navbar.js"></script>
 
-    <main class="main-content">
+    <!-- LOADING SCREEN -->
+    <div id="unauthorized" class="loader-container">
+        <div class="spinner" id="loading-spinner"></div>
+        <div id="auth-message">Verifying Access...</div>
+    </div>
+
+    <main class="main-content hidden" id="admin-content">
         
         <!-- LEFT: DIRECTORY PANE -->
         <div class="directory-pane">
             <div class="pane-header">
                 <h3>Directory</h3>
-                <!-- THIS BUTTON IS HIDDEN UNLESS ADMIN -->
-                <button class="btn btn-outline admin-only hidden" onclick="showCreateView()" style="padding: 4px 10px; font-size: 0.8em;">+ Add New</button>
+                <!-- ADMIN ONLY BUTTON -->
+                <button class="btn btn-outline admin-only hidden" onclick="openAddAccountModal()" style="padding: 6px 12px; font-size: 0.8em;">+ Add New</button>
             </div>
             
             <div class="tab-group">
@@ -89,79 +100,55 @@
             </div>
             
             <div class="account-list" id="account-list">
-                <div class="empty-state">Loading...</div>
+                <div class="empty-state">Loading accounts...</div>
             </div>
         </div>
 
-        <!-- RIGHT: DYNAMIC PANE -->
-        <div class="right-pane">
-            
-            <!-- DEFAULT STATE: EMPTY -->
-            <div id="view-empty" class="empty-state" style="display: flex;">
-                Select an account from the left to view history, or create a new one.
-            </div>
-
-            <!-- STATE 1: PASSBOOK (VIEW ACCOUNT) -->
-            <div id="view-passbook" class="passbook-view">
-                <div class="pb-header">
-                    <div class="pb-type" id="pb-type">Vendor</div>
-                    <div class="pb-name" id="pb-name">Loading...</div>
-                    <div style="font-size: 0.75em; color: #6b7280; margin-top: 10px; font-weight: 600;">WE CURRENTLY OWE</div>
+        <!-- RIGHT: PASSBOOK PANE -->
+        <div class="passbook-pane" id="passbook-pane">
+            <div class="pb-header">
+                <div class="pb-type" id="pb-type">Vendor Account</div>
+                <div class="pb-name" id="pb-name">Select an Account</div>
+                <div class="pb-meta" id="pb-meta">Phone: - | GST: -</div>
+                
+                <div class="pb-bal-box">
+                    <div class="pb-bal-label">Total Outstanding Balance</div>
                     <div class="pb-bal">₹ <span id="pb-bal">0.00</span></div>
                 </div>
-                
-                <div class="pb-actions">
-                    <button class="btn btn-green" onclick="alert('Will open Add Bill pop-up')">+ Add Due Bill</button>
-                    <button class="btn btn-outline" onclick="alert('Will jump to Dashboard to pay')">Record Payment</button>
-                </div>
-                
-                <div style="overflow-y: auto; flex-grow: 1;">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Bill No. / Ref</th>
-                                <th>Type</th>
-                                <th style="text-align: right;">Amount (₹)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pb-history">
-                            <tr><td colspan="4" class="empty-state" style="border:none;">No bills or payments logged yet.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
-
-            <!-- STATE 2: CREATE ACCOUNT (ADMIN ONLY) -->
-            <div id="view-create" class="create-view">
-                <h2>Create New Account</h2>
-                
-                <label>Account Type</label>
-                <select id="new-type" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #d1d5db;">
-                    <option value="vendor">Vendor / Supplier</option>
-                    <option value="finance">Finance / Bank</option>
-                </select>
-
-                <label>Account Name (Required)</label>
-                <input type="text" id="new-name" placeholder="e.g., Supply Co. or HDFC Bank">
-                
-                <label>Phone Number <span style="font-weight: normal; color: #9ca3af;">(Optional)</span></label>
-                <input type="text" id="new-phone" placeholder="e.g., 9876543210">
-
-                <label>GST / Tax ID <span style="font-weight: normal; color: #9ca3af;">(Optional)</span></label>
-                <input type="text" id="new-gst" placeholder="e.g., 29ABCDE1234F1Z5">
-
-                <label>Opening Balance (₹) <span style="font-weight: normal; color: #9ca3af;">(Optional)</span></label>
-                <input type="number" id="new-balance" placeholder="0.00">
-                <span class="help-text">Amount you *already owe* before using this software.</span>
-
-                <div style="margin-top: 25px; display: flex; gap: 10px;">
-                    <button class="btn" onclick="saveNewAccount()">Save Account</button>
-                    <button class="btn btn-outline" onclick="showEmptyView()">Cancel</button>
-                </div>
+            
+            <div class="pb-actions">
+                <button class="btn btn-green" onclick="openAddBillModal()">+ Add Due Bill</button>
+                <button class="btn btn-outline" onclick="window.location.href='master-ledger.html'">Record Payment</button>
             </div>
-
+            
+            <div class="history-container">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Bill No. / Ref</th>
+                            <th>Type</th>
+                            <th style="text-align: right;">Amount (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pb-history">
+                        <tr><td colspan="4" class="empty-state" style="border:none;">Select an account from the left.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        <!-- DEFAULT EMPTY STATE FOR DESKTOP -->
+        <div class="passbook-pane" id="empty-pane" style="display: flex;">
+            <div class="empty-state">
+                <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom: 15px; opacity: 0.4;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path>
+                </svg>
+                Select an account from the directory to view its passbook.
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -169,72 +156,78 @@
         let isAdmin = false;
         let activeTab = 'vendors';
         let allVendors = [];
+        let activeAccount = null; // Stores currently selected vendor object
 
         window.onload = () => {
             setTimeout(async () => {
-                // Check auth & role
-                const { data: userData } = await supabaseClient.auth.getUser();
-                if (userData && userData.user) {
-                    const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
-                    if (profile) {
-                        currentShopId = profile.shop_id;
-                        isAdmin = (profile.role === 'admin');
-                        
-                        // Show Admin buttons if authorized
-                        if (isAdmin) {
-                            document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-                        }
-
-                        await fetchDirectory();
+                try {
+                    const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+                    if (authError || !userData || !userData.user) {
+                        failAuth("ACCESS DENIED: Not logged in.");
+                        return;
                     }
+
+                    const { data: profile, error: profileError } = await supabaseClient
+                        .from('user_profiles')
+                        .select('role, shop_id')
+                        .eq('id', userData.user.id)
+                        .single();
+
+                    if (profileError) {
+                        failAuth("Database Error: " + profileError.message);
+                        return;
+                    }
+
+                    currentShopId = profile.shop_id;
+                    isAdmin = (profile.role === 'admin');
+
+                    if (isAdmin) {
+                        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+                    }
+
+                    document.getElementById('unauthorized').classList.add('hidden');
+                    document.getElementById('admin-content').classList.remove('hidden');
+
+                    await fetchDirectory();
+                } catch (err) {
+                    failAuth("System Error: " + err.message);
                 }
-            }, 500); 
+            }, 600);
         };
 
-        // --- UI NAVIGATION ---
-        
+        function failAuth(msg) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            const msgEl = document.getElementById('auth-message');
+            msgEl.innerText = msg;
+            msgEl.style.color = '#ef4444';
+        }
+
+        // --- NAVIGATION & TABS ---
         function switchTab(tabName) {
             activeTab = tabName;
             document.getElementById('tab-vendors').classList.remove('active');
             document.getElementById('tab-finances').classList.remove('active');
             document.getElementById(`tab-${tabName}`).classList.add('active');
-            showEmptyView();
+            
+            activeAccount = null;
+            document.getElementById('passbook-pane').style.display = 'none';
+            document.getElementById('empty-pane').style.display = 'flex';
+            
             renderList();
         }
 
-        function showEmptyView() {
-            document.getElementById('view-empty').style.display = 'flex';
-            document.getElementById('view-passbook').style.display = 'none';
-            document.getElementById('view-create').style.display = 'none';
-            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
-        }
-
-        function showCreateView() {
-            document.getElementById('view-empty').style.display = 'none';
-            document.getElementById('view-passbook').style.display = 'none';
-            document.getElementById('view-create').style.display = 'flex';
-            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
-        }
-
-        function openPassbook(element, id, name, balance, type) {
-            document.getElementById('view-empty').style.display = 'none';
-            document.getElementById('view-create').style.display = 'none';
-            document.getElementById('view-passbook').style.display = 'flex';
-            
-            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
-
-            document.getElementById('pb-name').innerText = name;
-            document.getElementById('pb-bal').innerText = parseFloat(balance).toFixed(2);
-            document.getElementById('pb-type').innerText = type;
-        }
-
-        // --- DATA LOGIC ---
-
         async function fetchDirectory() {
-            if(!currentShopId) return;
-            const { data: vendors } = await supabaseClient.from('vendors').select('*').eq('shop_id', currentShopId).order('name');
-            if (vendors) allVendors = vendors;
+            if (!currentShopId) return;
+            
+            if (activeTab === 'vendors') {
+                const { data: vendors, error } = await supabaseClient
+                    .from('vendors')
+                    .select('*')
+                    .eq('shop_id', currentShopId)
+                    .order('name', { ascending: true });
+
+                if (!error && vendors) allVendors = vendors;
+            }
             renderList();
         }
 
@@ -248,54 +241,212 @@
                     return;
                 }
                 allVendors.forEach(v => {
-                    const bal = v.outstanding_balance || 0;
+                    const bal = parseFloat(v.outstanding_balance || 0).toFixed(2);
+                    const isSelected = activeAccount && activeAccount.id === v.id ? 'active' : '';
                     list.innerHTML += `
-                        <div class="account-item" onclick="openPassbook(this, '${v.id}', '${v.name}', ${bal}, 'Vendor')">
+                        <div class="account-item ${isSelected}" onclick='selectVendor(${JSON.stringify(v)}, this)'>
                             <span class="acc-name">${v.name}</span>
-                            <span class="acc-bal">₹ ${parseFloat(bal).toFixed(2)}</span>
+                            <span class="acc-bal">₹ ${bal}</span>
                         </div>
                     `;
                 });
             } else {
-                list.innerHTML = '<div class="empty-state">Finances table pending database update.</div>';
+                list.innerHTML = '<div class="empty-state">Finance accounts coming soon.</div>';
             }
         }
 
-        async function saveNewAccount() {
-            if (!currentShopId) return;
+        async function selectVendor(vendor, element) {
+            activeAccount = vendor;
+            document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            document.getElementById('empty-pane').style.display = 'none';
+            document.getElementById('passbook-pane').style.display = 'flex';
+
+            document.getElementById('pb-name').innerText = vendor.name;
+            document.getElementById('pb-bal').innerText = parseFloat(vendor.outstanding_balance || 0).toFixed(2);
+            document.getElementById('pb-type').innerText = 'Vendor Account';
+            document.getElementById('pb-meta').innerText = `Phone: ${vendor.phone || '-'} | GST: ${vendor.gst_number || '-'}`;
+
+            await loadVendorHistory(vendor.id);
+        }
+
+        async function loadVendorHistory(vendorId) {
+            const tbody = document.getElementById('pb-history');
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history...</td></tr>`;
+
+            // Fetch Bills
+            const { data: bills } = await supabaseClient
+                .from('vendor_bills')
+                .select('*')
+                .eq('vendor_id', vendorId)
+                .order('bill_date', { ascending: false });
+
+            // Fetch Payments made to this vendor from master ledger logs or daily transactions
+            const { data: payouts } = await supabaseClient
+                .from('master_ledger_logs')
+                .select('*')
+                .eq('shop_id', currentShopId)
+                .eq('transaction_type', 'VENDOR_PAYOUT')
+                .ilike('reference_note', `%${activeAccount.name}%`);
+
+            let combinedHistory = [];
             
-            const type = document.getElementById('new-type').value;
-            const name = document.getElementById('new-name').value;
-            const phone = document.getElementById('new-phone').value || null;
-            const gst = document.getElementById('new-gst').value || null;
-            const bal = parseFloat(document.getElementById('new-balance').value) || 0;
+            if (bills) {
+                bills.forEach(b => {
+                    combinedHistory.push({
+                        date: new Date(b.bill_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        ref: b.bill_number ? `Bill #${b.bill_number}` : 'Due Bill',
+                        type: 'Due Bill (Owed)',
+                        amount: parseFloat(b.amount),
+                        isPositive: true, // Increases what we owe
+                        rawDate: new Date(b.bill_date)
+                    });
+                });
+            }
 
-            if (!name) return alert("Account Name is required.");
+            if (payouts) {
+                payouts.forEach(p => {
+                    combinedHistory.push({
+                        date: new Date(p.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        ref: p.reference_note || 'Payment Sent',
+                        type: 'Payment (Settled)',
+                        amount: parseFloat(Math.abs(p.amount)),
+                        isPositive: false, // Decreases what we owe
+                        rawDate: new Date(p.created_at)
+                    });
+                });
+            }
 
-            if (type === 'vendor') {
-                // WARNING: Phone and GST won't save until we update the database columns next!
+            // Sort by date descending
+            combinedHistory.sort((a, b) => b.rawDate - a.rawDate);
+
+            tbody.innerHTML = '';
+            if (combinedHistory.length > 0) {
+                combinedHistory.forEach(item => {
+                    const colorClass = item.isPositive ? 'text-red' : 'text-green';
+                    const sign = item.isPositive ? '+' : '-';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${item.date}</td>
+                            <td>${item.ref}</td>
+                            <td><strong style="color: #4b5563;">${item.type}</strong></td>
+                            <td style="text-align: right; font-weight: 700;" class="${colorClass}">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 25px; color: #9ca3af;">No bills or payments recorded yet.</td></tr>`;
+            }
+        }
+
+        // --- ADMIN: ADD NEW ACCOUNT MODAL ---
+        async function openAddAccountModal() {
+            const { value: formValues } = await Swal.fire({
+                title: 'Create New Account',
+                html: `
+                    <select id="swal-type" class="swal2-input">
+                        <option value="vendor">Vendor / Supplier</option>
+                    </select>
+                    <input id="swal-name" class="swal2-input" placeholder="Account Name (Required)">
+                    <input id="swal-phone" class="swal2-input" placeholder="Phone Number (Optional)">
+                    <input id="swal-gst" class="swal2-input" placeholder="GST Number (Optional)">
+                    <input id="swal-bal" class="swal2-input" type="number" placeholder="Opening Balance Owed (₹)">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Save Account',
+                confirmButtonColor: '#0f172a',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-name').value;
+                    if (!name) {
+                        Swal.showValidationMessage('Account Name is required');
+                        return false;
+                    }
+                    return {
+                        name: name,
+                        phone: document.getElementById('swal-phone').value || null,
+                        gst: document.getElementById('swal-gst').value || null,
+                        balance: parseFloat(document.getElementById('swal-bal').value) || 0
+                    };
+                }
+            });
+
+            if (formValues) {
                 const { error } = await supabaseClient.from('vendors').insert([{
                     shop_id: currentShopId,
-                    name: name,
-                    outstanding_balance: bal
-                    // phone: phone, 
-                    // gst_number: gst
+                    name: formValues.name,
+                    phone: formValues.phone,
+                    gst_number: formValues.gst,
+                    outstanding_balance: formValues.balance
                 }]);
 
-                if (error) return alert("Error: " + error.message);
+                if (error) {
+                    Swal.fire('Error', 'Failed to create account: ' + error.message, 'error');
+                } else {
+                    Swal.fire({ title: 'Success!', text: 'Account created successfully.', icon: 'success', timer: 1500, showConfirmButton: false });
+                    await fetchDirectory();
+                }
+            }
+        }
+
+        // --- ADMIN / USER: ADD DUE BILL MODAL ---
+        async function openAddBillModal() {
+            if (!activeAccount) return Swal.fire('Select Account', 'Please select a vendor first.', 'warning');
+
+            const { value: billData } = await Swal.fire({
+                title: `Log Due Bill for ${activeAccount.name}`,
+                html: `
+                    <input id="swal-bill-no" class="swal2-input" placeholder="Bill / Invoice Number">
+                    <input id="swal-bill-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
+                    <input id="swal-bill-date" class="swal2-input" type="date" value="${new Date().toISOString().split('T')[0]}">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Save Bill',
+                confirmButtonColor: '#10b981',
+                preConfirm: () => {
+                    const amount = parseFloat(document.getElementById('swal-bill-amt').value);
+                    if (!amount || amount <= 0) {
+                        Swal.showValidationMessage('Enter a valid bill amount');
+                        return false;
+                    }
+                    return {
+                        billNumber: document.getElementById('swal-bill-no').value || '-',
+                        amount: amount,
+                        date: document.getElementById('swal-bill-date').value
+                    };
+                }
+            });
+
+            if (billData) {
+                // 1. Insert into vendor_bills table
+                const { error: billError } = await supabaseClient.from('vendor_bills').insert([{
+                    shop_id: currentShopId,
+                    vendor_id: activeAccount.id,
+                    bill_number: billData.billNumber,
+                    amount: billData.amount,
+                    bill_date: billData.date
+                }]);
+
+                if (billError) return Swal.fire('Error', 'Failed to save bill: ' + billError.message, 'error');
+
+                // 2. Increase Vendor's Outstanding Balance
+                const newBalance = parseFloat(activeAccount.outstanding_balance || 0) + billData.amount;
+                const { error: updateError } = await supabaseClient
+                    .from('vendors')
+                    .update({ outstanding_balance: newBalance })
+                    .eq('id', activeAccount.id);
+
+                if (updateError) return Swal.fire('Error', 'Failed to update vendor balance: ' + updateError.message, 'error');
+
+                activeAccount.outstanding_balance = newBalance;
                 
-                alert("Account created successfully!");
+                Swal.fire({ title: 'Bill Logged!', text: `Added ₹${billData.amount} to outstanding balance.`, icon: 'success', timer: 1500, showConfirmButton: false });
                 
-                // Clear form & refresh
-                document.getElementById('new-name').value = '';
-                document.getElementById('new-phone').value = '';
-                document.getElementById('new-gst').value = '';
-                document.getElementById('new-balance').value = '';
-                
+                // Refresh views
                 await fetchDirectory();
-                showEmptyView();
-            } else {
-                alert("Finance accounts require the new finances table in the database.");
+                selectVendor(activeAccount, document.querySelector('.account-item.active'));
             }
         }
     </script>
