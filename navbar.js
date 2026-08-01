@@ -3,21 +3,21 @@ async function loadSidebarNavbar() {
     // Prevent it from duplicating if it accidentally runs twice
     if (document.getElementById('sys-sidebar-nav')) return;
 
-    // THE FIX: Wait for supabaseClient to be loaded by supabase-init.js
+    // THE FIX: Check for the variable directly, not on the 'window' object.
     let retries = 0;
-    while (!window.supabaseClient && retries < 20) {
+    while (typeof supabaseClient === 'undefined' && retries < 40) { // Waits up to 2 seconds
         await new Promise(resolve => setTimeout(resolve, 50));
         retries++;
     }
 
-    if (!window.supabaseClient) {
-        console.error("Fatal Error: Supabase client never loaded.");
+    if (typeof supabaseClient === 'undefined') {
+        console.error("Fatal Error: Supabase client never loaded. Check if supabase-init.js is loading correctly.");
         return;
     }
 
     try {
         // 1. Verify Authentication
-        const { data: userData, error: authError } = await window.supabaseClient.auth.getUser();
+        const { data: userData, error: authError } = await supabaseClient.auth.getUser();
         
         if (authError || !userData || !userData.user) {
             window.location.replace('index.html');
@@ -25,7 +25,7 @@ async function loadSidebarNavbar() {
         }
 
         // 2. Get User Role
-        const { data: profile } = await window.supabaseClient
+        const { data: profile } = await supabaseClient
             .from('user_profiles')
             .select('role')
             .eq('id', userData.user.id)
@@ -162,7 +162,7 @@ async function loadSidebarNavbar() {
         const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
 
         // 5. Build the links
-        let linksHtml = `<a href="dashboard.html" class="sys-nav-link ${currentPage === 'dashboard.html' ? 'active' : ''}">Dashboard</a>`;
+        let linksHtml = `<a href="dashboard.html" class="sys-nav-link ${currentPage === 'dashboard.html' || currentPage === '' ? 'active' : ''}">Dashboard</a>`;
 
         if (isAdmin) {
             linksHtml += `
@@ -190,7 +190,7 @@ async function loadSidebarNavbar() {
             const btn = document.getElementById('logout-btn');
             btn.innerText = 'Exiting...';
             try {
-                await window.supabaseClient.auth.signOut();
+                await supabaseClient.auth.signOut();
             } catch(e) {
                 console.error('Logout error suppressed');
             } finally {
@@ -203,7 +203,7 @@ async function loadSidebarNavbar() {
     }
 }
 
-// Fire the function
+// Ensure the page is ready before drawing the sidebar
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadSidebarNavbar);
 } else {
