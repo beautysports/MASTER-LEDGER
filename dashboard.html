@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Shop Dashboard</title>
     <script src="supabase-init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         /* ULTRA-CLEAN MODERN UI */
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; display: flex; height: 100vh; overflow: hidden; }
@@ -14,21 +15,20 @@
         .card { background: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .card-full { grid-column: span 2; }
         
-        /* TOP SUMMARY */
-        .summary-header { text-align: center; padding: 35px 20px; background: linear-gradient(to bottom, #ffffff, #f8fafc); position: relative; }
-        .master-label { color: #64748b; font-size: 0.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
-        .master-balance { font-size: 4rem; font-weight: 800; margin: 0; letter-spacing: -2px; color: #0f172a; }
+        /* TOP SUMMARY - ENLARGED AS REQUESTED */
+        .summary-header { text-align: center; padding: 40px 20px; background: linear-gradient(to bottom, #ffffff, #f8fafc); position: relative; }
+        .master-label { color: #64748b; font-size: 0.9em; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        .master-balance { font-size: 5.5rem; font-weight: 800; margin: 0; letter-spacing: -2.5px; color: #0f172a; line-height: 1; }
         
-        /* DATE SELECTOR HEADER BAR */
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
         .header-title { font-size: 1.4em; font-weight: 800; margin: 0; color: #0f172a; }
-        .date-picker-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9em; font-weight: 600; color: #334155; }
-        .date-picker-container input { border: none; outline: none; font-size: 0.95em; font-weight: 600; color: #0f172a; background: transparent; cursor: pointer; }
+        .date-picker-container { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95em; font-weight: 700; color: #334155; }
+        .date-picker-container input { border: none; outline: none; font-size: 1em; font-weight: 700; color: #0f172a; background: transparent; cursor: pointer; }
 
-        .summary-row { display: flex; justify-content: center; gap: 40px; border-top: 1px solid #f1f5f9; padding-top: 25px; margin-top: 25px; flex-wrap: wrap; }
-        .summary-stat { text-align: center; min-width: 110px; }
-        .summary-stat span { display: block; font-size: 0.75em; color: #64748b; margin-bottom: 4px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-        .summary-stat strong { font-size: 1.5em; font-weight: 800; letter-spacing: -0.5px; }
+        .summary-row { display: flex; justify-content: center; gap: 50px; border-top: 1px solid #e2e8f0; padding-top: 30px; margin-top: 30px; flex-wrap: wrap; }
+        .summary-stat { text-align: center; min-width: 130px; }
+        .summary-stat span { display: block; font-size: 0.85em; color: #64748b; margin-bottom: 8px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        .summary-stat strong { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; }
         
         .text-green { color: #059669; } .text-red { color: #dc2626; } .text-blue { color: #2563eb; }
 
@@ -52,26 +52,31 @@
         button.action-btn { background-color: #0f172a; color: #ffffff; border: none; cursor: pointer; font-weight: 700; margin-top: 22px; padding: 14px; border-radius: 8px; width: 100%; font-size: 1em; transition: 0.2s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         button.action-btn:hover { background-color: #334155; transform: translateY(-1px); }
 
-        /* UTILS */
         .hidden { display: none !important; }
 
-        /* HISTORY TABLE */
+        /* CLASSIC LEDGER TABLE */
         .history-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 0.9em; }
-        .history-table th { text-align: left; padding: 12px 10px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; }
-        .history-table td { padding: 14px 10px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
+        .history-table th { text-align: left; padding: 14px 10px; border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 800; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; }
+        .history-table td { padding: 16px 10px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 500; vertical-align: middle; }
+        .history-table tr:hover td { background: #f8fafc; }
         
         .edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #475569; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: 600; transition: 0.2s; }
         .edit-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+
+        .tag { font-size: 0.75em; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
+        .tag-cash { background: #e2e8f0; color: #475569; }
+        .tag-upi { background: #dbeafe; color: #1d4ed8; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; overflow: auto; height: auto; }
             .main-content { height: auto; overflow: visible; padding: 15px; }
             .action-grid { grid-template-columns: 1fr; }
-            .card-full { grid-column: span 1; }
+            .card-full { grid-column: span 1; overflow-x: auto; }
             .header-bar { flex-direction: column; align-items: stretch; gap: 10px; }
             .date-picker-container { justify-content: space-between; }
             .summary-row { gap: 20px; }
-            .master-balance { font-size: 3rem; }
+            .master-balance { font-size: 4rem; }
+            .summary-stat strong { font-size: 1.8rem; }
         }
     </style>
 </head>
@@ -82,7 +87,7 @@
     <main class="main-content">
         
         <div class="header-bar">
-            <h1 class="header-title">Shop Dashboard</h1>
+            <h1 class="header-title">Daybook Ledger</h1>
             <div class="date-picker-container">
                 <span style="font-size: 0.8em; color: #64748b; text-transform: uppercase;">Active Date:</span>
                 <input type="date" id="active-date" onchange="onDateChanged()">
@@ -90,12 +95,12 @@
         </div>
 
         <div class="card summary-header">
-            <div class="master-label">Physical Cash Drawer</div>
+            <div class="master-label">Physical Cash Drawer Balance</div>
             <div class="master-balance">₹ <span id="display-balance">0.00</span></div>
             <div class="summary-row">
                 <div class="summary-stat"><span>Cash In</span> <strong class="text-green">₹ <span id="display-income">0.00</span></strong></div>
                 <div class="summary-stat"><span>Cash Out</span> <strong class="text-red">₹ <span id="display-expense">0.00</span></strong></div>
-                <div class="summary-stat"><span>Total UPI</span> <strong class="text-blue">₹ <span id="display-upi">0.00</span></strong></div>
+                <div class="summary-stat"><span>Total UPI Received</span> <strong class="text-blue">₹ <span id="display-upi">0.00</span></strong></div>
             </div>
         </div>
 
@@ -120,6 +125,8 @@
 
                 <label>Amount (₹)</label>
                 <input type="number" id="income-amount" placeholder="0.00">
+                <label>Particulars / Note</label>
+                <input type="text" id="income-note" placeholder="Optional details">
                 <button class="action-btn" onclick="submitIncome()">Record Income</button>
             </div>
 
@@ -136,7 +143,7 @@
                 <label>Category</label>
                 <select id="expense-category" onchange="toggleExpenseFields()">
                     <option value="none" selected disabled>Select Category...</option>
-                    <option value="vendor">Vendor</option>
+                    <option value="vendor">Vendor / Supplier</option>
                     <option value="staff">Staff Payout</option>
                     <option value="finance">Finance / Kuri</option>
                     <option value="generic">General Expense</option>
@@ -157,7 +164,7 @@
 
                 <label>Amount (₹)</label>
                 <input type="number" id="expense-amount" placeholder="0.00">
-                <label>Note / Reference</label>
+                <label>Particulars / Note</label>
                 <input type="text" id="expense-note" placeholder="Optional details">
                 <button class="action-btn" onclick="submitExpense()">Record Expense</button>
             </div>
@@ -169,16 +176,16 @@
                 <table class="history-table">
                     <thead>
                         <tr>
-                            <th>Time</th>
-                            <th>Category</th>
-                            <th>Method</th>
-                            <th>Reference</th>
-                            <th style="text-align: right;">Amount (₹)</th>
+                            <th style="width: 80px;">Time</th>
+                            <th>Particulars</th>
+                            <th style="text-align: right;">Credit (In)</th>
+                            <th style="text-align: right;">Debit (Out)</th>
+                            <th style="text-align: right; background: #f8fafc;">Cash Balance</th>
                             <th id="edit-col-header" class="hidden" style="text-align: center; width: 60px;">Action</th>
                         </tr>
                     </thead>
                     <tbody id="txn-body">
-                        <tr><td colspan="6" style="text-align:center; padding: 30px; color: #94a3b8;">Loading...</td></tr>
+                        <tr><td colspan="6" style="text-align:center; padding: 30px; color: #94a3b8;">Loading ledger...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -192,54 +199,34 @@
 
         window.onload = () => {
             document.getElementById('active-date').valueAsDate = new Date();
-            
             setTimeout(async () => {
-                try {
-                    const { data: userData } = await supabaseClient.auth.getUser();
-                    if (userData && userData.user) {
-                        const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
-                        if (profile) {
-                            currentShopId = profile.shop_id;
-                            isAdmin = (profile.role === 'admin');
-                            
-                            if (isAdmin) {
-                                document.getElementById('edit-col-header').classList.remove('hidden');
-                            }
+                const { data: userData } = await supabaseClient.auth.getUser();
+                if (userData && userData.user) {
+                    const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
+                    if (profile) {
+                        currentShopId = profile.shop_id;
+                        isAdmin = (profile.role === 'admin');
+                        if (isAdmin) document.getElementById('edit-col-header').classList.remove('hidden');
 
-                            await loadDropdowns(currentShopId);
-                            await loadDashboardData();
-                        }
+                        await loadDropdowns(currentShopId);
+                        await loadDashboardData();
                     }
-                } catch (err) {
-                    console.error("Initialization error:", err);
                 }
             }, 600); 
         };
 
-        function onDateChanged() {
-            loadDashboardData();
-        }
+        function onDateChanged() { loadDashboardData(); }
 
         function setIncomeMethod(method) {
             document.getElementById('income-method').value = method;
-            if (method === 'CASH') {
-                document.getElementById('income-toggle-cash').className = 'toggle-btn active-cash';
-                document.getElementById('income-toggle-upi').className = 'toggle-btn';
-            } else {
-                document.getElementById('income-toggle-cash').className = 'toggle-btn';
-                document.getElementById('income-toggle-upi').className = 'toggle-btn active-upi';
-            }
+            document.getElementById('income-toggle-cash').className = method === 'CASH' ? 'toggle-btn active-cash' : 'toggle-btn';
+            document.getElementById('income-toggle-upi').className = method === 'UPI' ? 'toggle-btn active-upi' : 'toggle-btn';
         }
 
         function setExpenseMethod(method) {
             document.getElementById('expense-method').value = method;
-            if (method === 'CASH') {
-                document.getElementById('expense-toggle-cash').className = 'toggle-btn active-cash';
-                document.getElementById('expense-toggle-upi').className = 'toggle-btn';
-            } else {
-                document.getElementById('expense-toggle-cash').className = 'toggle-btn';
-                document.getElementById('expense-toggle-upi').className = 'toggle-btn active-upi';
-            }
+            document.getElementById('expense-toggle-cash').className = method === 'CASH' ? 'toggle-btn active-cash' : 'toggle-btn';
+            document.getElementById('expense-toggle-upi').className = method === 'UPI' ? 'toggle-btn active-upi' : 'toggle-btn';
         }
 
         function toggleExpenseFields() {
@@ -254,28 +241,17 @@
         }
 
         async function loadDropdowns(shopId) {
-            // STRICT CLASSIFICATION: Vendors only
-            const { data: vendors } = await supabaseClient.from('vendors')
-                .select('id, name')
-                .eq('shop_id', shopId)
-                .or('account_type.eq.vendor,account_type.is.null');
-            
+            const { data: vendors } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId).or('account_type.eq.vendor,account_type.is.null');
             const vSelect = document.getElementById('vendor-select');
             vSelect.innerHTML = '<option value="" selected disabled>Choose Vendor...</option>';
             if (vendors) vendors.forEach(v => vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
 
-            // Staff
             const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
             const sSelect = document.getElementById('staff-select');
             sSelect.innerHTML = '<option value="" selected disabled>Choose Staff...</option>';
             if (staff) staff.forEach(s => sSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
 
-            // STRICT CLASSIFICATION: Finance/Kuri only
-            const { data: finances } = await supabaseClient.from('vendors')
-                .select('id, name')
-                .eq('shop_id', shopId)
-                .eq('account_type', 'finance');
-                
+            const { data: finances } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId).eq('account_type', 'finance');
             const fSelect = document.getElementById('finance-select');
             fSelect.innerHTML = '<option value="" selected disabled>Choose Finance / Kuri...</option>';
             if (finances) finances.forEach(f => fSelect.innerHTML += `<option value="${f.id}">${f.name}</option>`);
@@ -283,51 +259,82 @@
 
         async function loadDashboardData() {
             if (!currentShopId) return;
-
             const selectedDate = document.getElementById('active-date').value;
             if (!selectedDate) return;
 
             const startOfDay = `${selectedDate}T00:00:00`;
             const endOfDay = `${selectedDate}T23:59:59`;
 
+            // SQL JOIN: Pulls exact Vendor and Staff names directly from the database into the dashboard
             const { data: txns, error } = await supabaseClient.from('daily_transactions')
-                .select('*')
+                .select(`*, vendors ( name ), staff ( name )`)
                 .eq('shop_id', currentShopId)
                 .eq('status', 'open')
                 .gte('created_at', startOfDay)
                 .lte('created_at', endOfDay)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: true }); // Ascending to calculate proper running balance
             
             if (error) return console.error("Fetch Error:", error);
 
             let cashIn = 0, cashOut = 0, totalUpi = 0;
-            const tbody = document.getElementById('txn-body');
-            tbody.innerHTML = '';
+            let runningCashBalance = 0;
+            const processedTxns = [];
 
             if (txns && txns.length > 0) {
                 txns.forEach(txn => {
                     const amt = parseFloat(txn.amount);
+                    
+                    // Track Master Totals
                     if (txn.payment_method === 'UPI') {
-                        totalUpi += amt; 
+                        if (txn.transaction_type === 'INCOME') totalUpi += amt;
                     } else if (txn.payment_method === 'CASH') {
-                        if (txn.transaction_type === 'INCOME') cashIn += amt;
-                        if (txn.transaction_type === 'EXPENSE') cashOut += amt;
+                        if (txn.transaction_type === 'INCOME') { cashIn += amt; runningCashBalance += amt; }
+                        if (txn.transaction_type === 'EXPENSE') { cashOut += amt; runningCashBalance -= amt; }
                     }
 
-                    const isIncome = txn.transaction_type === 'INCOME';
-                    const colorClass = isIncome ? 'text-green' : 'text-red';
-                    const sign = isIncome ? '+' : '-';
-                    const timeStr = new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                    // Build Particulars Text
+                    let particularsText = `<strong>${(txn.category || 'OTHER').toUpperCase()}</strong>`;
+                    if (txn.category === 'vendor' && txn.vendors) particularsText = `<strong>Vendor:</strong> ${txn.vendors.name}`;
+                    else if (txn.category === 'finance' && txn.vendors) particularsText = `<strong>Finance:</strong> ${txn.vendors.name}`;
+                    else if (txn.category === 'staff' && txn.staff) particularsText = `<strong>Staff:</strong> ${txn.staff.name}`;
                     
-                    let adminEditBtn = isAdmin ? `<td style="text-align:center;"><button class="edit-btn" onclick="editTransaction('${txn.id}', ${amt})">Edit</button></td>` : '';
+                    if (txn.reference_note) particularsText += `<br><span style="color:#64748b; font-size:0.9em;">${txn.reference_note}</span>`;
+
+                    processedTxns.push({
+                        ...txn,
+                        amt: amt,
+                        particulars: particularsText,
+                        currentBalance: runningCashBalance
+                    });
+                });
+            }
+
+            // Reverse for display (Newest at top)
+            processedTxns.reverse();
+
+            const tbody = document.getElementById('txn-body');
+            tbody.innerHTML = '';
+
+            if (processedTxns.length > 0) {
+                processedTxns.forEach(txn => {
+                    const timeStr = new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                    const isIncome = txn.transaction_type === 'INCOME';
+                    
+                    const creditHtml = isIncome ? `<span class="text-green">+ ${txn.amt.toFixed(2)}</span>` : '-';
+                    const debitHtml = !isIncome ? `<span class="text-red">- ${txn.amt.toFixed(2)}</span>` : '-';
+                    
+                    const tagClass = txn.payment_method === 'UPI' ? 'tag-upi' : 'tag-cash';
+                    const methodTag = `<span class="tag ${tagClass}">${txn.payment_method}</span>`;
+
+                    let adminEditBtn = isAdmin ? `<td style="text-align:center;"><button class="edit-btn" onclick="editTransaction('${txn.id}', ${txn.amt})">Edit</button></td>` : '';
                     
                     tbody.innerHTML += `
                         <tr>
-                            <td style="font-size: 0.85em; color: #64748b; font-weight: 600;">${timeStr}</td>
-                            <td><strong>${(txn.category || 'OTHER').toUpperCase()}</strong></td>
-                            <td><span style="font-size: 0.8em; font-weight: 700; background: #f1f5f9; padding: 3px 8px; border-radius: 4px; color: #475569;">${txn.payment_method}</span></td>
-                            <td>${txn.reference_note || '-'}</td>
-                            <td class="${colorClass}" style="text-align: right; font-weight: 700;">${sign} ₹ ${amt.toFixed(2)}</td>
+                            <td style="color: #64748b; font-weight: 600;">${timeStr}</td>
+                            <td>${methodTag}<br>${txn.particulars}</td>
+                            <td style="text-align: right; font-weight: 700;">${creditHtml}</td>
+                            <td style="text-align: right; font-weight: 700;">${debitHtml}</td>
+                            <td style="text-align: right; font-weight: 800; background: #f8fafc;">₹ ${txn.currentBalance.toFixed(2)}</td>
                             ${adminEditBtn}
                         </tr>
                     `;
@@ -354,8 +361,9 @@
             const category = document.getElementById('income-category').value;
             const method = document.getElementById('income-method').value;
             const amount = parseFloat(document.getElementById('income-amount').value);
+            const note = document.getElementById('income-note').value;
             
-            if(!amount || amount <= 0) return alert("Please enter a valid amount.");
+            if(!amount || amount <= 0) return Swal.fire('Invalid Amount', 'Please enter a valid amount.', 'error');
 
             const { error } = await supabaseClient.from('daily_transactions').insert([{
                 shop_id: currentShopId, 
@@ -363,12 +371,16 @@
                 category: category, 
                 payment_method: method, 
                 amount: amount,
+                reference_note: note,
                 status: 'open',
                 created_at: getSubmissionTimestamp()
             }]);
 
-            if (error) return alert("Error recording income: " + error.message);
+            if (error) return Swal.fire('Error', error.message, 'error');
+            
             document.getElementById('income-amount').value = '';
+            document.getElementById('income-note').value = '';
+            Swal.fire({ title: 'Income Recorded', icon: 'success', timer: 1000, showConfirmButton: false });
             await loadDashboardData();
         }
 
@@ -379,19 +391,19 @@
             const amount = parseFloat(document.getElementById('expense-amount').value);
             const note = document.getElementById('expense-note').value;
             
-            if(category === 'none') return alert("Please select an expense category.");
-            if(!amount || amount <= 0) return alert("Please enter a valid amount.");
+            if(category === 'none') return Swal.fire('Missing Category', 'Please select an expense category.', 'warning');
+            if(!amount || amount <= 0) return Swal.fire('Invalid Amount', 'Please enter a valid amount.', 'error');
 
             let vendor_id = null, staff_id = null;
             if (category === 'vendor') {
                 vendor_id = document.getElementById('vendor-select').value;
-                if (!vendor_id) return alert("Please select a vendor.");
+                if (!vendor_id) return Swal.fire('Missing Vendor', 'Please select a vendor.', 'warning');
             } else if (category === 'staff') {
                 staff_id = document.getElementById('staff-select').value;
-                if (!staff_id) return alert("Please select a staff member.");
+                if (!staff_id) return Swal.fire('Missing Staff', 'Please select a staff member.', 'warning');
             } else if (category === 'finance') {
                 vendor_id = document.getElementById('finance-select').value; 
-                if (!vendor_id) return alert("Please select a Finance / Kuri account.");
+                if (!vendor_id) return Swal.fire('Missing Finance Account', 'Please select a Finance / Kuri account.', 'warning');
             }
 
             // 1. Log Daily Transaction
@@ -408,7 +420,7 @@
                 created_at: getSubmissionTimestamp()
             }]);
 
-            if (error) return alert("Error recording expense: " + error.message);
+            if (error) return Swal.fire('Error', error.message, 'error');
 
             // 2. STRICT CLASSIFICATION: Instantly deduct from Account / Finance balance
             if (vendor_id) {
@@ -421,19 +433,27 @@
             
             document.getElementById('expense-amount').value = '';
             document.getElementById('expense-note').value = '';
+            Swal.fire({ title: 'Expense Recorded', text: 'Account balance has been updated.', icon: 'success', timer: 1500, showConfirmButton: false });
             await loadDashboardData();
         }
 
         async function editTransaction(txnId, currentAmount) {
-            const newAmountStr = prompt("Enter the corrected amount (₹):", currentAmount);
-            if (newAmountStr === null) return; 
+            const { value: newAmountStr } = await Swal.fire({
+                title: 'Admin Edit Transaction',
+                input: 'number',
+                inputValue: currentAmount,
+                showCancelButton: true,
+                confirmButtonText: 'Update'
+            });
+
+            if (!newAmountStr) return; 
             
             const newAmount = parseFloat(newAmountStr);
-            if (isNaN(newAmount) || newAmount <= 0) return alert("Invalid amount.");
+            if (isNaN(newAmount) || newAmount <= 0) return Swal.fire('Error', 'Invalid amount.', 'error');
             
             const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
+            if (error) return Swal.fire('Database Error', error.message, 'error');
             
-            if (error) return alert("Database Error: " + error.message);
             await loadDashboardData();
         }
     </script>
