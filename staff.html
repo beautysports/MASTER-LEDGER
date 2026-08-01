@@ -10,7 +10,6 @@
         /* MINIMALIST & MOBILE-OPTIMIZED BASE */
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* THE FIX: The missing hidden class */
         .hidden { display: none !important; }
 
         /* PROFESSIONAL FULL-SCREEN LOADER */
@@ -204,7 +203,7 @@
             msgEl.style.color = '#ef4444';
         }
 
-        // --- NEW: ADD STAFF LOGIC ---
+        // --- ADD STAFF LOGIC ---
         async function addNewStaff() {
             const { value: formValues } = await Swal.fire({
                 title: 'Add New Staff Member',
@@ -235,19 +234,24 @@
             }
         }
 
+        // --- FIXED: Sorted alphabetically by name ---
         async function loadStaffList() {
-            const { data: staff, error } = await supabaseClient.from('staff').select('id, name').eq('shop_id', currentShopId).order('created_at', { ascending: true });
+            const { data: staff, error } = await supabaseClient
+                .from('staff')
+                .select('id, name')
+                .eq('shop_id', currentShopId)
+                .order('name', { ascending: true }); // No more 400 Bad Request!
+            
             const list = document.getElementById('staff-list');
             list.innerHTML = '';
 
             if (error) {
-                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #ef4444;">Error loading staff.</div>`;
+                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #ef4444;">Error loading staff: ${error.message}</div>`;
                 return;
             }
 
             if (staff && staff.length > 0) {
                 staff.forEach(s => {
-                    // Pre-select if we already had someone active
                     const activeClass = (s.id === activeStaffId) ? 'active' : '';
                     list.innerHTML += `<div class="staff-item ${activeClass}" onclick="openStaff('${s.id}', '${s.name}', this)">${s.name}</div>`;
                 });
