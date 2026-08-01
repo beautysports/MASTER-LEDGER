@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Management (Admin)</title>
+    <script src="supabase-init.js"></script>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; height: 100vh; overflow: hidden; }
+        .main-content { flex-grow: 1; padding: 30px; display: flex; gap: 25px; height: calc(100vh - 60px); }
+        
+        /* DIRECTORY PANE */
+        .directory-pane { width: 300px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; }
+        .pane-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
+        .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; }
+        
+        .staff-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
+        .staff-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; font-weight: 500; font-size: 0.9em; }
+        .staff-item:hover { background: #f3f4f6; }
+        .staff-item.active { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+
+        /* DASHBOARD PANE */
+        .dashboard-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: none; flex-direction: column; overflow: hidden; }
+        .dash-header { padding: 25px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+        .staff-name { font-size: 1.5em; font-weight: 700; margin: 0; }
+        .staff-role { font-size: 0.8em; color: #6b7280; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }
+        
+        /* SPLIT VIEW */
+        .split-view { display: flex; flex-grow: 1; overflow: hidden; }
+        .calendar-section { flex: 1; padding: 25px; border-right: 1px solid #f3f4f6; overflow-y: auto; }
+        .history-section { flex: 1; padding: 25px; overflow-y: auto; background: #f9fafb; }
+        
+        h4 { margin-top: 0; font-size: 0.95em; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; }
+
+        /* 3-CLICK CALENDAR GRID */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 15px; }
+        .cal-day-header { text-align: center; font-size: 0.7em; font-weight: 700; color: #9ca3af; text-transform: uppercase; }
+        .cal-cell { aspect-ratio: 1; border-radius: 6px; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9em; cursor: pointer; user-select: none; transition: 0.1s; background: #ffffff; color: #9ca3af; }
+        
+        /* THE 3 STATES */
+        .state-FULL { background: #10b981; border-color: #10b981; color: white; }
+        .state-LEAVE { background: #ef4444; border-color: #ef4444; color: white; }
+        .state-HALF { background: #f59e0b; border-color: #f59e0b; color: white; }
+
+        /* HISTORY TABLE */
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .history-table th { text-align: left; padding: 10px; border-bottom: 2px solid #e5e7eb; color: #6b7280; }
+        .history-table td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; }
+
+        button.btn { background: #111827; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; font-size: 0.9em; }
+        button.btn:hover { background: #374151; }
+        
+        #unauthorized { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; text-align: center; color: #ef4444; font-weight: 600; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+    <script src="navbar.js"></script>
+
+    <!-- ADMIN ONLY WRAPPER -->
+    <div id="unauthorized">Verifying Admin Credentials...</div>
+
+    <main class="main-content hidden" id="admin-content">
+        
+        <!-- LEFT: STAFF DIRECTORY -->
+        <div class="directory-pane">
+            <div class="pane-header">
+                <h3>Staff Team</h3>
+                <button class="btn" onclick="alert('Add new staff pop-up')">+ Add</button>
+            </div>
+            <div class="staff-list" id="staff-list">
+                <div style="padding: 20px; text-align: center; color: #9ca3af;">Loading staff...</div>
+            </div>
+        </div>
+
+        <!-- RIGHT: DASHBOARD -->
+        <div class="dashboard-pane" id="dashboard-pane">
+            <div class="dash-header">
+                <div>
+                    <div class="staff-role">Staff Member</div>
+                    <div class="staff-name" id="selected-staff-name">John Doe</div>
+                </div>
+                <button class="btn" onclick="alert('Opens payment modal')">Log Payment</button>
+            </div>
+            
+            <div class="split-view">
+                <!-- CALENDAR SECTION -->
+                <div class="calendar-section">
+                    <h4>Attendance (Current Month)</h4>
+                    <div style="font-size: 0.75em; color: #6b7280; margin-bottom: 15px;">
+                        Click a day to toggle: <span style="color:#10b981; font-weight:bold;">1. Full</span> | <span style="color:#ef4444; font-weight:bold;">2. Leave</span> | <span style="color:#f59e0b; font-weight:bold;">3. Half</span>
+                    </div>
+                    
+                    <div class="cal-grid" id="calendar-grid">
+                        <!-- JS Will Inject Calendar Here -->
+                    </div>
+                </div>
+                
+                <!-- PAYMENT HISTORY SECTION -->
+                <div class="history-section">
+                    <h4>Payment History</h4>
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Method</th>
+                                <th style="text-align: right;">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payment-history">
+                            <tr><td colspan="3" style="text-align:center; padding: 20px; color: #9ca3af;">Select staff to view payments</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let currentShopId = null;
+        let isAdmin = false;
+        let activeStaffId = null;
+
+        // The sequence of states when clicking a day
+        const STATES = ['NONE', 'FULL', 'LEAVE', 'HALF'];
+
+        window.onload = () => {
+            setTimeout(async () => {
+                const { data: userData } = await supabaseClient.auth.getUser();
+                if (userData && userData.user) {
+                    const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
+                    if (profile && profile.role === 'admin') {
+                        currentShopId = profile.shop_id;
+                        isAdmin = true;
+                        
+                        document.getElementById('unauthorized').classList.add('hidden');
+                        document.getElementById('admin-content').classList.remove('hidden');
+                        
+                        await loadStaffList();
+                    } else {
+                        document.getElementById('unauthorized').innerText = "ACCESS DENIED: Admin Privileges Required.";
+                    }
+                }
+            }, 600);
+        };
+
+        async function loadStaffList() {
+            const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', currentShopId);
+            const list = document.getElementById('staff-list');
+            list.innerHTML = '';
+
+            if (staff && staff.length > 0) {
+                staff.forEach(s => {
+                    list.innerHTML += `<div class="staff-item" onclick="openStaff('${s.id}', '${s.name}', this)">${s.name}</div>`;
+                });
+            } else {
+                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #9ca3af;">No staff found.</div>`;
+            }
+        }
+
+        function openStaff(id, name, element) {
+            activeStaffId = id;
+            document.querySelectorAll('.staff-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            
+            document.getElementById('dashboard-pane').style.display = 'flex';
+            document.getElementById('selected-staff-name').innerText = name;
+
+            generateCalendar();
+            // We will load history in the next step
+        }
+
+        // --- 3-CLICK CALENDAR LOGIC ---
+        
+        function generateCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            // Add Days of week header
+            const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            days.forEach(d => grid.innerHTML += `<div class="cal-day-header">${d}</div>`);
+
+            // Generate 30 blank days for demonstration (will sync with real dates in next step)
+            for (let i = 1; i <= 30; i++) {
+                // By default, state is 0 (NONE)
+                grid.innerHTML += `<div class="cal-cell" data-state="0" data-day="${i}" onclick="toggleAttendance(this)">${i}</div>`;
+            }
+        }
+
+        function toggleAttendance(element) {
+            // Get current state index (0, 1, 2, or 3)
+            let currentStateIdx = parseInt(element.getAttribute('data-state'));
+            
+            // Move to next state (loop back to 0 if at the end)
+            let nextStateIdx = (currentStateIdx + 1) % STATES.length;
+            
+            // Update the data attribute
+            element.setAttribute('data-state', nextStateIdx);
+            
+            // Remove old color classes
+            element.classList.remove('state-FULL', 'state-LEAVE', 'state-HALF');
+            
+            // Apply new color class if it's not NONE
+            const stateName = STATES[nextStateIdx];
+            if (stateName !== 'NONE') {
+                element.classList.add(`state-${stateName}`);
+            }
+
+            // In the next step, this will instantly save to the database!
+            console.log(`Day ${element.getAttribute('data-day')} set to ${stateName}`);
+        }
+    </script>
+</body>
+</html>
