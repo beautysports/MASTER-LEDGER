@@ -3,58 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shop Floor Dashboard</title>
+    <title>Shop Dashboard</title>
     <script src="supabase-init.js"></script>
     <style>
-        /* SLEEK, MINIMALIST BASE */
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; display: flex; height: 100vh; overflow: hidden; }
-        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; transition: all 0.3s ease; }
+        /* ULTRA-MINIMALIST UI */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; height: 100vh; overflow: hidden; }
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; }
         
-        /* PREMIUM CARDS */
-        .summary-box { background: #ffffff; padding: 35px 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 30px; text-align: center; border: 1px solid #f1f5f9; }
-        .master-label { color: #64748b; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 10px; }
-        .master-balance { font-size: 3.5em; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -1.5px; }
-        
-        .summary-row { display: flex; justify-content: space-around; padding-top: 25px; margin-top: 25px; border-top: 1px solid #f1f5f9; }
-        .summary-stat { display: flex; flex-direction: column; gap: 5px; }
-        .summary-stat span { font-size: 0.75em; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-        .summary-stat strong { font-size: 1.3em; font-weight: 700; }
-        
-        .text-green { color: #10b981; } .text-red { color: #ef4444; } .text-blue { color: #3b82f6; }
-
-        /* GRID LAYOUT */
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
-        .card { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; transition: transform 0.2s ease; }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(0,0,0,0.04); }
+        /* FLAT CARDS */
+        .card { background: #ffffff; padding: 30px; border-radius: 8px; border: 1px solid #e5e7eb; margin-bottom: 25px; }
         .card-full { grid-column: span 2; }
         
-        h3 { margin-top: 0; color: #0f172a; font-weight: 700; font-size: 1.1em; margin-bottom: 25px; }
-        label { font-weight: 600; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* TOP SUMMARY */
+        .summary-header { text-align: center; margin-bottom: 20px; }
+        .master-label { color: #6b7280; font-size: 0.75em; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .master-balance { font-size: 3.5rem; font-weight: 700; margin: 0; letter-spacing: -1.5px; }
         
-        /* CLEAN INPUTS */
-        input, select { width: 100%; padding: 12px 14px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #e2e8f0; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; transition: all 0.2s ease; }
-        input:focus, select:focus { border-color: #0f172a; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05); }
+        .summary-row { display: flex; justify-content: center; gap: 50px; border-top: 1px solid #f3f4f6; padding-top: 25px; margin-top: 25px; }
+        .summary-stat { text-align: center; }
+        .summary-stat span { display: block; font-size: 0.75em; color: #6b7280; margin-bottom: 5px; text-transform: uppercase; font-weight: 600; }
+        .summary-stat strong { font-size: 1.25em; font-weight: 600; }
         
-        /* MONOCHROME BUTTONS */
-        button.action-btn { background-color: #0f172a; color: #ffffff; border: none; cursor: pointer; font-weight: 600; margin-top: 30px; padding: 14px; border-radius: 8px; width: 100%; font-size: 0.95em; transition: all 0.2s ease; }
-        button.action-btn:hover { background-color: #334155; }
+        .text-green { color: #059669; } .text-red { color: #dc2626; } .text-blue { color: #2563eb; }
 
-        /* ADMIN ONLY UTILITIES */
+        /* GRID */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
+        
+        h3 { margin-top: 0; font-size: 1.1em; font-weight: 600; margin-bottom: 20px; border-bottom: 1px solid #f3f4f6; padding-bottom: 15px; color: #111827; }
+        label { font-weight: 500; font-size: 0.85em; display: block; margin-top: 15px; color: #4b5563; }
+        
+        /* FLAT INPUTS */
+        input, select { width: 100%; padding: 10px 12px; margin-top: 6px; box-sizing: border-box; border-radius: 6px; border: 1px solid #d1d5db; background-color: #f9fafb; font-size: 0.95em; transition: all 0.2s; outline: none; }
+        input:focus, select:focus { border-color: #111827; background-color: #ffffff; }
+        
+        /* MINIMAL BUTTON */
+        button.action-btn { background-color: #111827; color: #ffffff; border: none; cursor: pointer; font-weight: 500; margin-top: 25px; padding: 12px; border-radius: 6px; width: 100%; font-size: 0.95em; transition: 0.2s; }
+        button.action-btn:hover { background-color: #374151; }
+
+        /* ADMIN TOOLBAR - CLEANED UP */
         .hidden { display: none !important; }
-        .admin-toolbar { background: #fef3c7; border: 1px solid #fde68a; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-        .admin-toolbar label { margin: 0; color: #92400e; }
-        .admin-date-input { width: 200px; margin: 0; padding: 8px 12px; border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+        .admin-toolbar { background: #fef2f2; border: 1px solid #fecaca; padding: 12px 20px; border-radius: 6px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: #991b1b; }
+        .admin-date-input { width: 180px; margin: 0; padding: 6px 10px; border-color: #fca5a5; background: #ffffff; color: #991b1b; }
 
         /* HISTORY TABLE */
         .history-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
-        .history-table th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #94a3b8; text-transform: uppercase; font-size: 0.75em; font-weight: 600; }
-        .history-table td { padding: 15px 12px; border-bottom: 1px solid #f8fafc; color: #334155; }
+        .history-table th { text-align: left; padding: 10px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-weight: 500; font-size: 0.85em; }
+        .history-table td { padding: 12px 10px; border-bottom: 1px solid #f3f4f6; color: #1f2937; }
         
-        .edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #64748b; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 600; transition: 0.2s; }
-        .edit-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+        .edit-btn { background: transparent; border: 1px solid #d1d5db; color: #4b5563; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: 0.2s; }
+        .edit-btn:hover { background: #f3f4f6; color: #111827; border-color: #9ca3af; }
 
         @media (max-width: 768px) {
-            body { flex-direction: column; }
+            body { flex-direction: column; overflow: auto; }
             .action-grid { grid-template-columns: 1fr; }
             .card-full { grid-column: span 1; }
             .admin-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -67,59 +67,59 @@
 
     <main class="main-content">
         
-        <!-- ADMIN TIME TRAVEL TOOLBAR (HIDDEN BY DEFAULT) -->
+        <!-- ADMIN OVERRIDE -->
         <div id="admin-toolbar" class="admin-toolbar hidden">
             <div>
-                <strong style="color: #92400e; display: block; font-size: 0.9em;">ADMIN OVERRIDE ACTIVE</strong>
-                <span style="color: #b45309; font-size: 0.8em;">You are posting to a specific date.</span>
+                <strong style="display: block; font-size: 0.9em;">Admin Override Active</strong>
+                <span style="font-size: 0.8em;">Posting entries to a specific past date.</span>
             </div>
             <input type="date" id="override-date" class="admin-date-input">
         </div>
 
-        <!-- TOP: LIVE DASHBOARD BALANCE -->
-        <div class="summary-box">
-            <div class="master-label">Expected Physical Cash</div>
+        <!-- SUMMARY -->
+        <div class="card summary-header">
+            <div class="master-label">Physical Cash</div>
             <div class="master-balance">₹ <span id="display-balance">0.00</span></div>
             <div class="summary-row">
                 <div class="summary-stat"><span>Cash In</span> <strong class="text-green">₹ <span id="display-income">0.00</span></strong></div>
                 <div class="summary-stat"><span>Cash Out</span> <strong class="text-red">₹ <span id="display-expense">0.00</span></strong></div>
-                <div class="summary-stat" style="border-left: 1px solid #f1f5f9; padding-left: 25px;"><span>UPI (Digital)</span> <strong class="text-blue">₹ <span id="display-upi">0.00</span></strong></div>
+                <div class="summary-stat"><span>UPI</span> <strong class="text-blue">₹ <span id="display-upi">0.00</span></strong></div>
             </div>
         </div>
 
         <div class="action-grid">
             <!-- INCOME -->
             <div class="card">
-                <h3>Log Income</h3>
+                <h3>Income</h3>
                 <label>Method</label>
                 <select id="income-method">
-                    <option value="CASH">Physical Cash</option>
-                    <option value="UPI">UPI / Digital</option>
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
                 </select>
                 <label>Category</label>
                 <select id="income-category">
-                    <option value="SALES">Daily Sales</option>
+                    <option value="SALES">Sales</option>
                     <option value="OTHER">Other</option>
                 </select>
                 <label>Amount (₹)</label>
                 <input type="number" id="income-amount" placeholder="0.00">
-                <button class="action-btn" onclick="submitIncome()">Record Income</button>
+                <button class="action-btn" onclick="submitIncome()">Record</button>
             </div>
 
             <!-- EXPENSE -->
             <div class="card">
-                <h3>Log Expense</h3>
+                <h3>Expense</h3>
                 <label>Method</label>
                 <select id="expense-method">
-                    <option value="CASH">Physical Cash</option>
-                    <option value="UPI">UPI / Digital</option>
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
                 </select>
                 <label>Category</label>
                 <select id="expense-category" onchange="toggleExpenseFields()">
                     <option value="none" selected disabled>Select...</option>
-                    <option value="vendor">Vendor Payment</option>
-                    <option value="staff">Staff Wages</option>
-                    <option value="generic">General Supplies</option>
+                    <option value="vendor">Vendor</option>
+                    <option value="staff">Staff</option>
+                    <option value="generic">General</option>
                 </select>
 
                 <div id="vendor-group" class="hidden">
@@ -134,24 +134,24 @@
                 <label>Amount (₹)</label>
                 <input type="number" id="expense-amount" placeholder="0.00">
                 <label>Note</label>
-                <input type="text" id="expense-note" placeholder="Optional details">
-                <button class="action-btn" onclick="submitExpense()">Record Expense</button>
+                <input type="text" id="expense-note" placeholder="Optional">
+                <button class="action-btn" onclick="submitExpense()">Record</button>
             </div>
         </div>
 
-        <!-- RECENT TRANSACTIONS -->
+        <!-- HISTORY -->
         <div class="action-grid">
             <div class="card card-full">
-                <h3>Today's Floor Transactions</h3>
+                <h3>Floor Transactions</h3>
                 <table class="history-table">
                     <thead>
                         <tr>
                             <th>Time</th>
                             <th>Type</th>
                             <th>Method</th>
-                            <th>Reference</th>
+                            <th>Ref</th>
                             <th style="text-align: right;">Amount (₹)</th>
-                            <th class="admin-only-col hidden" style="text-align: center; width: 60px;">Action</th>
+                            <th class="admin-only-col hidden" style="text-align: center; width: 60px;">Edit</th>
                         </tr>
                     </thead>
                     <tbody id="txn-body">
@@ -176,11 +176,9 @@
         }
 
         window.onload = () => {
-            // Set today's date in the admin override default
             document.getElementById('override-date').valueAsDate = new Date();
             
             setTimeout(async () => {
-                // 1. Get User Profile & Role
                 const { data: userData } = await supabaseClient.auth.getUser();
                 if (userData && userData.user) {
                     const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
@@ -188,7 +186,6 @@
                         currentShopId = profile.shop_id;
                         isAdmin = (profile.role === 'admin');
                         
-                        // IF ADMIN: Reveal superpowers
                         if (isAdmin) {
                             document.getElementById('admin-toolbar').classList.remove('hidden');
                             document.querySelectorAll('.admin-only-col').forEach(el => el.classList.remove('hidden'));
@@ -214,13 +211,19 @@
         }
 
         async function loadDashboardData(shopId) {
-            // Fetch only OPEN transactions (today's active shift)
-            const { data: txns } = await supabaseClient.from('daily_transactions')
+            // FIXED: Added error catching here
+            const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select('*')
                 .eq('shop_id', shopId)
                 .eq('status', 'open')
                 .order('created_at', { ascending: false });
             
+            if (error) {
+                alert("Fetch Error: " + error.message);
+                console.error(error);
+                return;
+            }
+
             let cashIn = 0, cashOut = 0, totalUpi = 0;
             const tbody = document.getElementById('txn-body');
             tbody.innerHTML = '';
@@ -234,7 +237,6 @@
                         if (txn.transaction_type === 'EXPENSE') cashOut += amt;
                     }
 
-                    // Render Table Row
                     const isIncome = txn.transaction_type === 'INCOME';
                     const colorClass = isIncome ? 'text-green' : 'text-red';
                     const sign = isIncome ? '+' : '-';
@@ -244,17 +246,17 @@
                     
                     tbody.innerHTML += `
                         <tr>
-                            <td style="font-size: 0.85em;">${timeStr}</td>
-                            <td><strong>${txn.category.toUpperCase()}</strong></td>
-                            <td style="font-size: 0.85em; color: #64748b;">${txn.payment_method}</td>
+                            <td style="font-size: 0.85em; color: #6b7280;">${timeStr}</td>
+                            <td><strong>${(txn.category || 'OTHER').toUpperCase()}</strong></td>
+                            <td style="font-size: 0.85em;">${txn.payment_method}</td>
                             <td>${txn.reference_note || '-'}</td>
-                            <td class="${colorClass}" style="text-align: right; font-weight: 600;">${sign} ${amt.toFixed(2)}</td>
+                            <td class="${colorClass}" style="text-align: right; font-weight: 500;">${sign} ${amt.toFixed(2)}</td>
                             ${adminEditBtn}
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="${isAdmin ? 6 : 5}" style="text-align:center; padding: 30px; color: #94a3b8;">No transactions logged today.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${isAdmin ? 6 : 5}" style="text-align:center; padding: 30px; color: #9ca3af;">No transactions logged today.</td></tr>`;
             }
 
             document.getElementById('display-income').innerText = cashIn.toFixed(2);
@@ -264,11 +266,9 @@
         }
 
         function getSubmissionDate() {
-            // Only Admins can override the date. Staff always posts to NOW().
             if (isAdmin) {
                 const dateVal = document.getElementById('override-date').value;
                 if (dateVal) {
-                    // Append current time to the selected date to make it a valid timestamp
                     const now = new Date();
                     return `${dateVal}T${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}Z`;
                 }
@@ -284,18 +284,22 @@
             
             if(!amount || amount <= 0) return alert("Enter a valid amount.");
 
+            // FIXED: Explicitly setting status to 'open'
             const { error } = await supabaseClient.from('daily_transactions').insert([{
                 shop_id: currentShopId, 
                 transaction_type: 'INCOME', 
                 category: category, 
                 payment_method: method, 
                 amount: amount,
+                status: 'open',
                 created_at: getSubmissionDate()
             }]);
 
             if (error) return alert("Error: " + error.message);
             document.getElementById('income-amount').value = '';
-            loadDashboardData(currentShopId);
+            
+            // FIXED: Using await to ensure the table refreshes instantly
+            await loadDashboardData(currentShopId);
         }
 
         async function submitExpense() { 
@@ -305,7 +309,7 @@
             const amount = parseFloat(document.getElementById('expense-amount').value);
             const note = document.getElementById('expense-note').value;
             
-            if(category === 'none') return alert("Select an expense category.");
+            if(category === 'none') return alert("Select a category.");
             if(!amount || amount <= 0) return alert("Enter a valid amount.");
 
             let vendor_id = null, staff_id = null;
@@ -314,9 +318,10 @@
                 if (vendor_id === 'none') return alert("Select a vendor.");
             } else if (category === 'staff') {
                 staff_id = document.getElementById('staff-select').value;
-                if (staff_id === 'none') return alert("Select a staff member.");
+                if (staff_id === 'none') return alert("Select staff.");
             }
 
+            // FIXED: Explicitly setting status to 'open'
             const { error } = await supabaseClient.from('daily_transactions').insert([{
                 shop_id: currentShopId, 
                 transaction_type: 'EXPENSE', 
@@ -326,27 +331,29 @@
                 reference_note: note, 
                 vendor_id: vendor_id, 
                 staff_id: staff_id,
+                status: 'open',
                 created_at: getSubmissionDate()
             }]);
 
             if (error) return alert("Error: " + error.message);
             document.getElementById('expense-amount').value = '';
             document.getElementById('expense-note').value = '';
-            loadDashboardData(currentShopId);
+            
+            // FIXED: Using await to ensure the table refreshes instantly
+            await loadDashboardData(currentShopId);
         }
 
-        // ADMIN ONLY: Edit a transaction amount instantly
         async function editTransaction(txnId, currentAmount) {
-            const newAmountStr = prompt("ADMIN OVERRIDE: Enter the new correct amount (₹):", currentAmount);
-            if (newAmountStr === null) return; // User clicked Cancel
+            const newAmountStr = prompt("ADMIN OVERRIDE: Enter the correct amount (₹):", currentAmount);
+            if (newAmountStr === null) return; 
             
             const newAmount = parseFloat(newAmountStr);
-            if (isNaN(newAmount) || newAmount <= 0) return alert("Invalid amount entered.");
+            if (isNaN(newAmount) || newAmount <= 0) return alert("Invalid amount.");
             
             const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
             
-            if (error) return alert("Error updating database: " + error.message);
-            loadDashboardData(currentShopId);
+            if (error) return alert("Database Error: " + error.message);
+            await loadDashboardData(currentShopId);
         }
     </script>
 </body>
