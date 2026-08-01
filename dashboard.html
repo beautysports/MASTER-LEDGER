@@ -3,223 +3,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal Dashboard</title>
-    <!-- Core Engine must load BEFORE navbar -->
+    <title>Shop Floor Dashboard</title>
     <script src="supabase-init.js"></script>
     <style>
-        /* Base Styling */
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f5f7; color: #1e293b; display: flex; height: 100vh; overflow: hidden; }
-        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; }
+        /* SLEEK, MINIMALIST BASE */
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #0f172a; display: flex; height: 100vh; overflow: hidden; }
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; transition: all 0.3s ease; }
         
-        /* Smooth Summary Box */
-        .summary-box { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border-left: 6px solid #10b981; margin-bottom: 30px; text-align: center; transition: transform 0.3s ease; }
-        .summary-box:hover { transform: translateY(-2px); }
-        .summary-row { display: flex; justify-content: space-around; font-size: 0.95em; color: #64748b; padding-top: 20px; border-top: 1px solid #f1f5f9; margin-top: 20px; }
-        .balance-text { font-size: 3em; font-weight: 800; margin: 10px 0; color: #10b981; letter-spacing: -1px; }
+        /* PREMIUM CARDS */
+        .summary-box { background: #ffffff; padding: 35px 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 30px; text-align: center; border: 1px solid #f1f5f9; }
+        .master-label { color: #64748b; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 10px; }
+        .master-balance { font-size: 3.5em; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -1.5px; }
+        
+        .summary-row { display: flex; justify-content: space-around; padding-top: 25px; margin-top: 25px; border-top: 1px solid #f1f5f9; }
+        .summary-stat { display: flex; flex-direction: column; gap: 5px; }
+        .summary-stat span { font-size: 0.75em; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .summary-stat strong { font-size: 1.3em; font-weight: 700; }
+        
+        .text-green { color: #10b981; } .text-red { color: #ef4444; } .text-blue { color: #3b82f6; }
 
-        /* Action Cards */
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .card { background: white; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.02); transition: all 0.3s ease; }
-        .card:hover { border-color: #cbd5e1; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .card-income { border-top: 4px solid #10b981; }
-        .card-expense { border-top: 4px solid #ef4444; }
+        /* GRID LAYOUT */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
+        .card { background: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; transition: transform 0.2s ease; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(0,0,0,0.04); }
+        .card-full { grid-column: span 2; }
         
-        h3 { margin-top: 0; font-size: 1.2em; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px; }
-        label { font-weight: 700; font-size: 0.75em; display: block; margin-top: 15px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; }
+        h3 { margin-top: 0; color: #0f172a; font-weight: 700; font-size: 1.1em; margin-bottom: 25px; }
+        label { font-weight: 600; font-size: 0.75em; display: block; margin-top: 15px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        /* Smooth Inputs */
-        input, select { width: 100%; padding: 14px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #f8fafc; font-size: 0.95em; color: #0f172a; transition: all 0.2s ease; outline: none; }
-        input:focus, select:focus { border-color: #3b82f6; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        /* CLEAN INPUTS */
+        input, select { width: 100%; padding: 12px 14px; margin-top: 8px; box-sizing: border-box; border-radius: 8px; border: 1px solid #e2e8f0; background-color: #f8fafc; outline: none; font-size: 0.95em; color: #0f172a; transition: all 0.2s ease; }
+        input:focus, select:focus { border-color: #0f172a; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05); }
         
-        button.action-btn { background-color: #0f172a; color: #fff; border: none; cursor: pointer; font-weight: 700; margin-top: 25px; padding: 15px; border-radius: 8px; width: 100%; font-size: 1em; transition: 0.2s ease; }
-        button.action-btn:hover { background-color: #334155; transform: translateY(-1px); }
-        
+        /* MONOCHROME BUTTONS */
+        button.action-btn { background-color: #0f172a; color: #ffffff; border: none; cursor: pointer; font-weight: 600; margin-top: 30px; padding: 14px; border-radius: 8px; width: 100%; font-size: 0.95em; transition: all 0.2s ease; }
+        button.action-btn:hover { background-color: #334155; }
+
+        /* ADMIN ONLY UTILITIES */
         .hidden { display: none !important; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        .admin-toolbar { background: #fef3c7; border: 1px solid #fde68a; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+        .admin-toolbar label { margin: 0; color: #92400e; }
+        .admin-date-input { width: 200px; margin: 0; padding: 8px 12px; border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+
+        /* HISTORY TABLE */
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        .history-table th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f5f9; color: #94a3b8; text-transform: uppercase; font-size: 0.75em; font-weight: 600; }
+        .history-table td { padding: 15px 12px; border-bottom: 1px solid #f8fafc; color: #334155; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #64748b; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 600; transition: 0.2s; }
+        .edit-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
 
         @media (max-width: 768px) {
-            body { flex-direction: column; overflow: auto; }
+            body { flex-direction: column; }
             .action-grid { grid-template-columns: 1fr; }
-            .main-content { padding: 20px; }
+            .card-full { grid-column: span 1; }
+            .admin-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- INJECT THE NAVBAR MODULE -->
     <script src="navbar.js"></script>
 
-    <!-- MAIN CONTENT AREA -->
     <main class="main-content">
         
+        <!-- ADMIN TIME TRAVEL TOOLBAR (HIDDEN BY DEFAULT) -->
+        <div id="admin-toolbar" class="admin-toolbar hidden">
+            <div>
+                <strong style="color: #92400e; display: block; font-size: 0.9em;">ADMIN OVERRIDE ACTIVE</strong>
+                <span style="color: #b45309; font-size: 0.8em;">You are posting to a specific date.</span>
+            </div>
+            <input type="date" id="override-date" class="admin-date-input">
+        </div>
+
+        <!-- TOP: LIVE DASHBOARD BALANCE -->
         <div class="summary-box">
-            <div style="text-transform: uppercase; font-size: 0.85em; font-weight: 700;">Expected Physical Cash</div>
-            <div class="balance-text">₹ <span id="display-balance">0.00</span></div>
+            <div class="master-label">Expected Physical Cash</div>
+            <div class="master-balance">₹ <span id="display-balance">0.00</span></div>
             <div class="summary-row">
-                <div><span style="display:block;">Cash In</span> <strong style="color:#10b981;">₹ <span id="display-income">0.00</span></strong></div>
-                <div><span style="display:block;">Cash Out</span> <strong style="color:#ef4444;">₹ <span id="display-expense">0.00</span></strong></div>
-                <div><span style="display:block;">Total UPI</span> <strong style="color:#3b82f6;">₹ <span id="display-upi">0.00</span></strong></div>
+                <div class="summary-stat"><span>Cash In</span> <strong class="text-green">₹ <span id="display-income">0.00</span></strong></div>
+                <div class="summary-stat"><span>Cash Out</span> <strong class="text-red">₹ <span id="display-expense">0.00</span></strong></div>
+                <div class="summary-stat" style="border-left: 1px solid #f1f5f9; padding-left: 25px;"><span>UPI (Digital)</span> <strong class="text-blue">₹ <span id="display-upi">0.00</span></strong></div>
             </div>
         </div>
 
         <div class="action-grid">
-            <!-- INCOME CARD -->
-            <div class="card card-income">
+            <!-- INCOME -->
+            <div class="card">
                 <h3>Log Income</h3>
-                
-                <label>Income Source</label>
-                <select id="income-account">
-                    <option value="default">General Counter Sales</option>
-                    <!-- Future: Auto-populate other income accounts here -->
-                </select>
-
-                <label>Payment Method</label>
+                <label>Method</label>
                 <select id="income-method">
-                    <option value="CASH">Cash (Drawer)</option>
-                    <option value="UPI">UPI / Bank Transfer</option>
+                    <option value="CASH">Physical Cash</option>
+                    <option value="UPI">UPI / Digital</option>
                 </select>
-
+                <label>Category</label>
+                <select id="income-category">
+                    <option value="SALES">Daily Sales</option>
+                    <option value="OTHER">Other</option>
+                </select>
                 <label>Amount (₹)</label>
                 <input type="number" id="income-amount" placeholder="0.00">
-                
                 <button class="action-btn" onclick="submitIncome()">Record Income</button>
             </div>
 
-            <!-- EXPENSE CARD -->
-            <div class="card card-expense">
-                <h3>Log Expense / Payout</h3>
-                
-                <label>Expense Category</label>
-                <select id="expense-category" onchange="toggleExpenseFields()">
-                    <option value="none" selected disabled>Select Category...</option>
-                    <option value="general">General Supply / Misc</option>
-                    <option value="vendor">Vendor Payout</option>
-                    <option value="staff">Staff Wage / Advance</option>
-                </select>
-
-                <!-- Dynamic Vendor Dropdown -->
-                <div id="vendor-group" class="hidden fade-in">
-                    <label>Select Vendor</label>
-                    <select id="vendor-select">
-                        <option value="">Loading vendors...</option>
-                    </select>
-                </div>
-
-                <!-- Dynamic Staff Dropdown -->
-                <div id="staff-group" class="hidden fade-in">
-                    <label>Select Staff Member</label>
-                    <select id="staff-select">
-                        <option value="">Loading staff...</option>
-                    </select>
-                </div>
-
-                <label>Payment Method</label>
+            <!-- EXPENSE -->
+            <div class="card">
+                <h3>Log Expense</h3>
+                <label>Method</label>
                 <select id="expense-method">
-                    <option value="CASH">Cash (Drawer)</option>
-                    <option value="UPI">UPI / Bank Transfer</option>
+                    <option value="CASH">Physical Cash</option>
+                    <option value="UPI">UPI / Digital</option>
                 </select>
+                <label>Category</label>
+                <select id="expense-category" onchange="toggleExpenseFields()">
+                    <option value="none" selected disabled>Select...</option>
+                    <option value="vendor">Vendor Payment</option>
+                    <option value="staff">Staff Wages</option>
+                    <option value="generic">General Supplies</option>
+                </select>
+
+                <div id="vendor-group" class="hidden">
+                    <label>Select Vendor</label>
+                    <select id="vendor-select"><option value="">Loading...</option></select>
+                </div>
+                <div id="staff-group" class="hidden">
+                    <label>Select Staff</label>
+                    <select id="staff-select"><option value="">Loading...</option></select>
+                </div>
 
                 <label>Amount (₹)</label>
                 <input type="number" id="expense-amount" placeholder="0.00">
-                
-                <label>Note / Reference (Optional)</label>
-                <input type="text" id="expense-note" placeholder="e.g., Water cans, tea, bill #104">
-
+                <label>Note</label>
+                <input type="text" id="expense-note" placeholder="Optional details">
                 <button class="action-btn" onclick="submitExpense()">Record Expense</button>
             </div>
         </div>
+
+        <!-- RECENT TRANSACTIONS -->
+        <div class="action-grid">
+            <div class="card card-full">
+                <h3>Today's Floor Transactions</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Method</th>
+                            <th>Reference</th>
+                            <th style="text-align: right;">Amount (₹)</th>
+                            <th class="admin-only-col hidden" style="text-align: center; width: 60px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txn-body">
+                        <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </main>
 
-<script>
+    <script>
         let currentShopId = null;
+        let isAdmin = false;
 
-        // 1. CASCADING UI LOGIC
         function toggleExpenseFields() {
-            const category = document.getElementById('expense-category').value;
-            const vendorGroup = document.getElementById('vendor-group');
-            const staffGroup = document.getElementById('staff-group');
-
-            vendorGroup.classList.add('hidden');
-            staffGroup.classList.add('hidden');
-
-            if (category === 'vendor') vendorGroup.classList.remove('hidden');
-            else if (category === 'staff') staffGroup.classList.remove('hidden');
+            const cat = document.getElementById('expense-category').value;
+            document.getElementById('vendor-group').classList.add('hidden');
+            document.getElementById('staff-group').classList.add('hidden');
+            if (cat === 'vendor') document.getElementById('vendor-group').classList.remove('hidden');
+            if (cat === 'staff') document.getElementById('staff-group').classList.remove('hidden');
         }
 
-        // 2. INITIALIZE SYSTEM
         window.onload = () => {
+            // Set today's date in the admin override default
+            document.getElementById('override-date').valueAsDate = new Date();
+            
             setTimeout(async () => {
-                const { data: shopData } = await supabaseClient.from('shops').select('id').single();
-                if (shopData) {
-                    currentShopId = shopData.id;
-                    await loadDropdowns(currentShopId);
-                    await calculateBalances(currentShopId);
+                // 1. Get User Profile & Role
+                const { data: userData } = await supabaseClient.auth.getUser();
+                if (userData && userData.user) {
+                    const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
+                    if (profile) {
+                        currentShopId = profile.shop_id;
+                        isAdmin = (profile.role === 'admin');
+                        
+                        // IF ADMIN: Reveal superpowers
+                        if (isAdmin) {
+                            document.getElementById('admin-toolbar').classList.remove('hidden');
+                            document.querySelectorAll('.admin-only-col').forEach(el => el.classList.remove('hidden'));
+                        }
+
+                        await loadDropdowns(currentShopId);
+                        await loadDashboardData(currentShopId);
+                    }
                 }
-            }, 500); 
+            }, 600); 
         };
 
-        // 3. LOAD DROPDOWNS
         async function loadDropdowns(shopId) {
             const { data: vendors } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId);
             const vendorSelect = document.getElementById('vendor-select');
-            vendorSelect.innerHTML = '<option value="none" selected disabled>Choose a Vendor...</option>';
+            vendorSelect.innerHTML = '<option value="none" selected disabled>Choose Vendor...</option>';
             if (vendors) vendors.forEach(v => vendorSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
 
             const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
             const staffSelect = document.getElementById('staff-select');
-            staffSelect.innerHTML = '<option value="none" selected disabled>Choose Staff Member...</option>';
+            staffSelect.innerHTML = '<option value="none" selected disabled>Choose Staff...</option>';
             if (staff) staff.forEach(s => staffSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
         }
 
-        // 4. CALCULATE LIVE BALANCES
-        async function calculateBalances(shopId) {
-            const { data: txns } = await supabaseClient.from('daily_transactions').select('*').eq('shop_id', shopId);
+        async function loadDashboardData(shopId) {
+            // Fetch only OPEN transactions (today's active shift)
+            const { data: txns } = await supabaseClient.from('daily_transactions')
+                .select('*')
+                .eq('shop_id', shopId)
+                .eq('status', 'open')
+                .order('created_at', { ascending: false });
             
             let cashIn = 0, cashOut = 0, totalUpi = 0;
+            const tbody = document.getElementById('txn-body');
+            tbody.innerHTML = '';
 
-            if (txns) {
+            if (txns && txns.length > 0) {
                 txns.forEach(txn => {
                     const amt = parseFloat(txn.amount);
-                    if (txn.payment_method === 'UPI') {
-                        totalUpi += amt; 
-                        // Note: UPI doesn't affect the physical cash drawer
-                    } else if (txn.payment_method === 'CASH') {
+                    if (txn.payment_method === 'UPI') totalUpi += amt; 
+                    else if (txn.payment_method === 'CASH') {
                         if (txn.transaction_type === 'INCOME') cashIn += amt;
                         if (txn.transaction_type === 'EXPENSE') cashOut += amt;
                     }
-                });
-            }
 
-            const expectedCash = cashIn - cashOut;
+                    // Render Table Row
+                    const isIncome = txn.transaction_type === 'INCOME';
+                    const colorClass = isIncome ? 'text-green' : 'text-red';
+                    const sign = isIncome ? '+' : '-';
+                    const timeStr = new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                    
+                    let adminEditBtn = isAdmin ? `<td style="text-align:center;"><button class="edit-btn" onclick="editTransaction('${txn.id}', ${amt})">Edit</button></td>` : '';
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-size: 0.85em;">${timeStr}</td>
+                            <td><strong>${txn.category.toUpperCase()}</strong></td>
+                            <td style="font-size: 0.85em; color: #64748b;">${txn.payment_method}</td>
+                            <td>${txn.reference_note || '-'}</td>
+                            <td class="${colorClass}" style="text-align: right; font-weight: 600;">${sign} ${amt.toFixed(2)}</td>
+                            ${adminEditBtn}
+                        </tr>
+                    `;
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="${isAdmin ? 6 : 5}" style="text-align:center; padding: 30px; color: #94a3b8;">No transactions logged today.</td></tr>`;
+            }
 
             document.getElementById('display-income').innerText = cashIn.toFixed(2);
             document.getElementById('display-expense').innerText = cashOut.toFixed(2);
             document.getElementById('display-upi').innerText = totalUpi.toFixed(2);
-            document.getElementById('display-balance').innerText = expectedCash.toFixed(2);
+            document.getElementById('display-balance').innerText = (cashIn - cashOut).toFixed(2);
         }
 
-        // 5. SUBMIT INCOME
+        function getSubmissionDate() {
+            // Only Admins can override the date. Staff always posts to NOW().
+            if (isAdmin) {
+                const dateVal = document.getElementById('override-date').value;
+                if (dateVal) {
+                    // Append current time to the selected date to make it a valid timestamp
+                    const now = new Date();
+                    return `${dateVal}T${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}Z`;
+                }
+            }
+            return new Date().toISOString();
+        }
+
         async function submitIncome() { 
             if(!currentShopId) return;
-            const category = document.getElementById('income-account').value;
+            const category = document.getElementById('income-category').value;
             const method = document.getElementById('income-method').value;
             const amount = parseFloat(document.getElementById('income-amount').value);
             
             if(!amount || amount <= 0) return alert("Enter a valid amount.");
 
             const { error } = await supabaseClient.from('daily_transactions').insert([{
-                shop_id: currentShopId, transaction_type: 'INCOME', category: category, payment_method: method, amount: amount
+                shop_id: currentShopId, 
+                transaction_type: 'INCOME', 
+                category: category, 
+                payment_method: method, 
+                amount: amount,
+                created_at: getSubmissionDate()
             }]);
 
-            if (error) { alert("Error: " + error.message); return; }
-            
+            if (error) return alert("Error: " + error.message);
             document.getElementById('income-amount').value = '';
-            calculateBalances(currentShopId);
+            loadDashboardData(currentShopId);
         }
 
-        // 6. SUBMIT EXPENSE
         async function submitExpense() { 
             if(!currentShopId) return;
             const category = document.getElementById('expense-category').value;
@@ -230,9 +308,7 @@
             if(category === 'none') return alert("Select an expense category.");
             if(!amount || amount <= 0) return alert("Enter a valid amount.");
 
-            let vendor_id = null;
-            let staff_id = null;
-
+            let vendor_id = null, staff_id = null;
             if (category === 'vendor') {
                 vendor_id = document.getElementById('vendor-select').value;
                 if (vendor_id === 'none') return alert("Select a vendor.");
@@ -242,14 +318,35 @@
             }
 
             const { error } = await supabaseClient.from('daily_transactions').insert([{
-                shop_id: currentShopId, transaction_type: 'EXPENSE', category: category, payment_method: method, amount: amount, reference_note: note, vendor_id: vendor_id, staff_id: staff_id
+                shop_id: currentShopId, 
+                transaction_type: 'EXPENSE', 
+                category: category, 
+                payment_method: method, 
+                amount: amount, 
+                reference_note: note, 
+                vendor_id: vendor_id, 
+                staff_id: staff_id,
+                created_at: getSubmissionDate()
             }]);
 
-            if (error) { alert("Error: " + error.message); return; }
-
+            if (error) return alert("Error: " + error.message);
             document.getElementById('expense-amount').value = '';
             document.getElementById('expense-note').value = '';
-            calculateBalances(currentShopId);
+            loadDashboardData(currentShopId);
+        }
+
+        // ADMIN ONLY: Edit a transaction amount instantly
+        async function editTransaction(txnId, currentAmount) {
+            const newAmountStr = prompt("ADMIN OVERRIDE: Enter the new correct amount (₹):", currentAmount);
+            if (newAmountStr === null) return; // User clicked Cancel
+            
+            const newAmount = parseFloat(newAmountStr);
+            if (isNaN(newAmount) || newAmount <= 0) return alert("Invalid amount entered.");
+            
+            const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
+            
+            if (error) return alert("Error updating database: " + error.message);
+            loadDashboardData(currentShopId);
         }
     </script>
 </body>
