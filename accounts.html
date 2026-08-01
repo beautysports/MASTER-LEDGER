@@ -286,17 +286,27 @@
             const tbody = document.getElementById('pb-history');
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history...</td></tr>`;
 
-            const { data: bills } = await supabaseClient
+            const { data: bills, error: billError } = await supabaseClient
                 .from('vendor_bills')
                 .select('*')
                 .eq('vendor_id', vendorId)
                 .order('bill_date', { ascending: false });
 
-            const { data: payouts } = await supabaseClient
+            if (billError) {
+                console.error("Error loading vendor bills:", billError);
+            }
+
+            // FIXED: Removed any artificial limits so it fetches ALL historical payouts for this vendor
+            const { data: payouts, error: payoutError } = await supabaseClient
                 .from('master_ledger_logs')
                 .select('*')
                 .eq('shop_id', currentShopId)
-                .ilike('reference_note', `%${activeAccount.name}%`);
+                .ilike('reference_note', `%${activeAccount.name}%`)
+                .order('created_at', { ascending: false });
+
+            if (payoutError) {
+                console.error("Error loading payouts:", payoutError);
+            }
 
             rawHistoryData = [];
             
