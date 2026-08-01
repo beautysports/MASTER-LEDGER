@@ -9,9 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
         .hidden { display: none !important; }
-
         .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
         .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -97,7 +95,7 @@
 
             <div class="tab-group">
                 <div class="tab active" id="tab-vendors" onclick="switchTab('vendors')">Vendors</div>
-                <div class="tab" id="tab-finances" onclick="switchTab('finances')">Finances</div>
+                <div class="tab" id="tab-finances" onclick="switchTab('finances')">Finances / Kuri</div>
             </div>
             
             <div class="account-list" id="account-list">
@@ -119,7 +117,7 @@
                 </div>
                 
                 <div class="pb-actions no-print">
-                    <button class="btn btn-green" onclick="openAddBillModal()">+ Add Due Bill</button>
+                    <button class="btn btn-green" onclick="openAddBillModal()">+ Add Due Bill / Installment</button>
                     <button class="btn" onclick="openPayModal()">Record Payment</button>
                     <button class="btn btn-outline" onclick="promptPDFDownload()">Download PDF</button>
                 </div>
@@ -157,9 +155,13 @@
         let currentShopId = null;
         let isAdmin = false;
         let activeTab = 'vendors';
+        
+        // Separated memory arrays
         let allVendors = [];
+        let allFinances = [];
+        
         let activeAccount = null; 
-        let rawHistoryData = []; // Stores complete fetched history for filtering
+        let rawHistoryData = []; 
 
         window.onload = () => {
             setTimeout(async () => {
@@ -230,14 +232,16 @@
         async function fetchDirectory() {
             if (!currentShopId) return;
             
-            if (activeTab === 'vendors') {
-                const { data: vendors, error } = await supabaseClient
-                    .from('vendors')
-                    .select('*')
-                    .eq('shop_id', currentShopId)
-                    .order('name', { ascending: true });
+            // Fetch everything, then split by type
+            const { data: accounts, error } = await supabaseClient
+                .from('vendors')
+                .select('*')
+                .eq('shop_id', currentShopId)
+                .order('name', { ascending: true });
 
-                if (!error && vendors) allVendors = vendors;
+            if (!error && accounts) {
+                allVendors = accounts.filter(a => a.account_type === 'vendor' || !a.account_type);
+                allFinances = accounts.filter(a => a.account_type === 'finance');
             }
             renderList();
         }
@@ -245,25 +249,25 @@
         function renderList() {
             const list = document.getElementById('account-list');
             list.innerHTML = '';
+            
+            const activeData = activeTab === 'vendors' ? allVendors : allFinances;
+            const emptyMsg = activeTab === 'vendors' ? 'No vendors found.' : 'No finance accounts found.';
 
-            if (activeTab === 'vendors') {
-                if (allVendors.length === 0) {
-                    list.innerHTML = '<div class="empty-state">No vendors found.</div>';
-                    return;
-                }
-                allVendors.forEach(v => {
-                    const bal = parseFloat(v.outstanding_balance || 0).toFixed(2);
-                    const isSelected = activeAccount && activeAccount.id === v.id ? 'active' : '';
-                    list.innerHTML += `
-                        <div class="account-item ${isSelected}" onclick='selectVendor(${JSON.stringify(v)}, this)'>
-                            <span class="acc-name">${v.name}</span>
-                            <span class="acc-bal">₹ ${bal}</span>
-                        </div>
-                    `;
-                });
-            } else {
-                list.innerHTML = '<div class="empty-state">Finance accounts coming soon.</div>';
+            if (activeData.length === 0) {
+                list.innerHTML = `<div class="empty-state">${emptyMsg}</div>`;
+                return;
             }
+
+            activeData.forEach(v => {
+                const bal = parseFloat(v.outstanding_balance || 0).toFixed(2);
+                const isSelected = activeAccount && activeAccount.id === v.id ? 'active' : '';
+                list.innerHTML += `
+                    <div class="account-item ${isSelected}" onclick='selectVendor(${JSON.stringify(v)}, this)'>
+                        <span class="acc-name">${v.name}</span>
+                        <span class="acc-bal">₹ ${bal}</span>
+                    </div>
+                `;
+            });
         }
 
         async function selectVendor(vendor, element) {
@@ -276,8 +280,12 @@
 
             document.getElementById('pb-name').innerText = vendor.name;
             document.getElementById('pb-bal').innerText = parseFloat(vendor.outstanding_balance || 0).toFixed(2);
-            document.getElementById('pb-type').innerText = 'Vendor Account';
-            document.getElementById('pb-meta').innerText = `Phone: ${vendor.phone || '-'} | GST: ${vendor.gst_number || '-'}`;
+            document.getElementById('pb-type').innerText = vendor.account_type === 'finance' ? 'Finance / Kuri Account' : 'Vendor Account';
+            
+            const metaText = vendor.account_type === 'finance' ? 
+                `Acct/Phone: ${vendor.phone || '-'} | Ref: ${vendor.gst_number || '-'}` : 
+                `Phone: ${vendor.phone || '-'} | GST: ${vendor.gst_number || '-'}`;
+            document.getElementById('pb-meta').innerText = metaText;
 
             await loadVendorHistory(vendor.id);
         }
@@ -286,27 +294,8 @@
             const tbody = document.getElementById('pb-history');
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history...</td></tr>`;
 
-            const { data: bills, error: billError } = await supabaseClient
-                .from('vendor_bills')
-                .select('*')
-                .eq('vendor_id', vendorId)
-                .order('bill_date', { ascending: false });
-
-            if (billError) {
-                console.error("Error loading vendor bills:", billError);
-            }
-
-            // FIXED: Removed any artificial limits so it fetches ALL historical payouts for this vendor
-            const { data: payouts, error: payoutError } = await supabaseClient
-                .from('master_ledger_logs')
-                .select('*')
-                .eq('shop_id', currentShopId)
-                .ilike('reference_note', `%${activeAccount.name}%`)
-                .order('created_at', { ascending: false });
-
-            if (payoutError) {
-                console.error("Error loading payouts:", payoutError);
-            }
+            const { data: bills } = await supabaseClient.from('vendor_bills').select('*').eq('vendor_id', vendorId).order('bill_date', { ascending: false });
+            const { data: payouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`).order('created_at', { ascending: false });
 
             rawHistoryData = [];
             
@@ -314,8 +303,8 @@
                 bills.forEach(b => {
                     rawHistoryData.push({
                         dateStr: new Date(b.bill_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        ref: b.bill_number ? `Bill #${b.bill_number}` : 'Due Bill',
-                        type: 'Due Bill',
+                        ref: b.bill_number ? `Ref #${b.bill_number}` : 'Due Entry',
+                        type: 'Due / Installment',
                         amount: parseFloat(b.amount),
                         isPositive: true, 
                         rawDate: new Date(b.bill_date)
@@ -364,14 +353,21 @@
             }
         }
 
-        // --- ADD NEW ACCOUNT ---
         async function openAddAccountModal() {
+            // Auto-select dropdown based on current active tab
+            const isFin = activeTab === 'finances' ? 'selected' : '';
+            const isVen = activeTab === 'vendors' ? 'selected' : '';
+
             const { value: formValues } = await Swal.fire({
                 title: 'Create New Account',
                 html: `
+                    <select id="swal-type" class="swal2-input">
+                        <option value="vendor" ${isVen}>Vendor / Supplier</option>
+                        <option value="finance" ${isFin}>Finance / Kuri / Bank</option>
+                    </select>
                     <input id="swal-name" class="swal2-input" placeholder="Account Name (Required)">
-                    <input id="swal-phone" class="swal2-input" placeholder="Phone Number (Optional)">
-                    <input id="swal-gst" class="swal2-input" placeholder="GST Number (Optional)">
+                    <input id="swal-phone" class="swal2-input" placeholder="Phone or Acct No. (Optional)">
+                    <input id="swal-gst" class="swal2-input" placeholder="GST or Ref ID (Optional)">
                     <input id="swal-bal" class="swal2-input" type="number" placeholder="Opening Balance Owed (₹)">
                 `,
                 focusConfirm: false,
@@ -385,6 +381,7 @@
                         return false;
                     }
                     return {
+                        type: document.getElementById('swal-type').value,
                         name: name,
                         phone: document.getElementById('swal-phone').value || null,
                         gst: document.getElementById('swal-gst').value || null,
@@ -396,6 +393,7 @@
             if (formValues) {
                 const { error } = await supabaseClient.from('vendors').insert([{
                     shop_id: currentShopId,
+                    account_type: formValues.type,
                     name: formValues.name,
                     phone: formValues.phone,
                     gst_number: formValues.gst,
@@ -411,25 +409,26 @@
             }
         }
 
-        // --- ADD DUE BILL ---
         async function openAddBillModal() {
             if (!activeAccount) return Swal.fire('Select Account', 'Please select an account first.', 'warning');
+            
+            const titleLabel = activeAccount.account_type === 'finance' ? 'Add Installment Due' : 'Add Due Bill';
 
             const { value: billData } = await Swal.fire({
-                title: `Add Due Bill: ${activeAccount.name}`,
+                title: `${titleLabel}: ${activeAccount.name}`,
                 html: `
-                    <input id="swal-bill-no" class="swal2-input" placeholder="Bill / Invoice Number">
+                    <input id="swal-bill-no" class="swal2-input" placeholder="Reference / Invoice No.">
                     <input id="swal-bill-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
                     <input id="swal-bill-date" class="swal2-input" type="date" value="${new Date().toISOString().split('T')[0]}">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
-                confirmButtonText: 'Save Bill',
+                confirmButtonText: 'Save Entry',
                 confirmButtonColor: '#10b981',
                 preConfirm: () => {
                     const amount = parseFloat(document.getElementById('swal-bill-amt').value);
                     if (!amount || amount <= 0) {
-                        Swal.showValidationMessage('Enter a valid bill amount');
+                        Swal.showValidationMessage('Enter a valid amount');
                         return false;
                     }
                     return {
@@ -449,20 +448,19 @@
                     bill_date: billData.date
                 }]);
 
-                if (billError) return Swal.fire('Error', 'Failed to save bill: ' + billError.message, 'error');
+                if (billError) return Swal.fire('Error', 'Failed to save entry: ' + billError.message, 'error');
 
                 const newBalance = parseFloat(activeAccount.outstanding_balance || 0) + billData.amount;
                 await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
 
                 activeAccount.outstanding_balance = newBalance;
-                Swal.fire({ title: 'Bill Logged!', text: `Added ₹${billData.amount} to balance.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                Swal.fire({ title: 'Logged!', text: `Added ₹${billData.amount} to balance.`, icon: 'success', timer: 1500, showConfirmButton: false });
                 
                 await fetchDirectory();
                 selectVendor(activeAccount);
             }
         }
 
-        // --- RECORD PAYMENT ---
         async function openPayModal() {
             if (!activeAccount) return Swal.fire('Select Account', 'Please select an account first.', 'warning');
 
@@ -518,7 +516,7 @@
                     await supabaseClient.from('daily_transactions').insert([{
                         shop_id: currentShopId,
                         transaction_type: 'EXPENSE',
-                        category: 'vendor',
+                        category: activeAccount.account_type === 'finance' ? 'finance' : 'vendor',
                         payment_method: 'CASH',
                         amount: payData.amount,
                         vendor_id: activeAccount.id,
@@ -530,7 +528,7 @@
                     await supabaseClient.from('daily_transactions').insert([{
                         shop_id: currentShopId,
                         transaction_type: 'EXPENSE',
-                        category: 'vendor',
+                        category: activeAccount.account_type === 'finance' ? 'finance' : 'vendor',
                         payment_method: 'UPI',
                         amount: payData.amount,
                         vendor_id: activeAccount.id,
@@ -550,18 +548,13 @@
             }
         }
 
-        // --- PROMPT TIME PERIOD BEFORE DOWNLOADING PDF ---
         async function promptPDFDownload() {
             if (!activeAccount) return;
 
             const { value: timeFilter } = await Swal.fire({
                 title: 'Download Statement PDF',
                 input: 'select',
-                inputOptions: {
-                    'all': 'All Time History',
-                    '30': 'Last 30 Days',
-                    'month': 'This Current Month'
-                },
+                inputOptions: { 'all': 'All Time History', '30': 'Last 30 Days', 'month': 'This Current Month' },
                 inputPlaceholder: 'Select time period',
                 showCancelButton: true,
                 confirmButtonText: 'Download',
@@ -570,7 +563,6 @@
 
             if (!timeFilter) return;
 
-            // Filter raw data based on selection
             let filteredData = [...rawHistoryData];
             const now = new Date();
 
@@ -579,16 +571,11 @@
                 thirtyDaysAgo.setDate(now.getDate() - 30);
                 filteredData = filteredData.filter(item => item.rawDate >= thirtyDaysAgo);
             } else if (timeFilter === 'month') {
-                filteredData = filteredData.filter(item => 
-                    item.rawDate.getMonth() === now.getMonth() && 
-                    item.rawDate.getFullYear() === now.getFullYear()
-                );
+                filteredData = filteredData.filter(item => item.rawDate.getMonth() === now.getMonth() && item.rawDate.getFullYear() === now.getFullYear());
             }
 
-            // Temporarily render filtered data to table for PDF snapshot
             renderTableHistory(filteredData);
 
-            // Execute PDF Export with clean vendor filename (No "Passbook")
             const element = document.getElementById('pdf-export-area');
             const opt = {
                 margin:       10,
@@ -599,7 +586,6 @@
             };
 
             html2pdf().from(element).set(opt).save().then(() => {
-                // Restore full history table view after download completes
                 renderTableHistory(rawHistoryData);
             });
         }
