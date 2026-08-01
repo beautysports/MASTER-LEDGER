@@ -6,6 +6,8 @@
     <title>Accounts & Vendors</title>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- HTML2PDF CDN FOR PDF EXPORTS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* MINIMALIST & MOBILE-OPTIMIZED BASE */
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -22,16 +24,20 @@
         .main-content { flex-grow: 1; padding: 20px; display: flex; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; }
         
         /* DIRECTORY PANE (LEFT) */
-        .directory-pane { width: 320px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; }
+        .directory-pane { width: 320px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
         .pane-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
         .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; }
         
+        .search-box-container { padding: 10px 15px; border-bottom: 1px solid #f3f4f6; background: #ffffff; }
+        .search-input { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9em; outline: none; box-sizing: border-box; background: #f9fafb; }
+        .search-input:focus { border-color: #111827; background: #fff; }
+
         .tab-group { display: flex; border-bottom: 1px solid #f3f4f6; }
-        .tab { flex: 1; padding: 12px; text-align: center; font-size: 0.8em; font-weight: 700; color: #6b7280; cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; background: #ffffff; }
+        .tab { flex: 1; padding: 10px; text-align: center; font-size: 0.8em; font-weight: 700; color: #6b7280; cursor: pointer; text-transform: uppercase; border-bottom: 2px solid transparent; background: #ffffff; }
         .tab.active { color: #111827; border-bottom-color: #111827; background: #f9fafb; }
         
         .account-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
-        .account-item { padding: 14px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; transition: 0.2s; }
+        .account-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; transition: 0.2s; }
         .account-item:hover { background: #f3f4f6; }
         .account-item.active { background: #eff6ff; border-color: #bfdbfe; }
         .acc-name { font-weight: 600; font-size: 0.95em; color: #0f172a; }
@@ -47,7 +53,7 @@
         .pb-bal-label { font-size: 0.75em; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
         .pb-bal { font-size: 2.2em; font-weight: 800; color: #dc2626; margin-top: 2px; letter-spacing: -1px; }
         
-        .pb-actions { display: flex; gap: 15px; justify-content: center; padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #f3f4f6; }
+        .pb-actions { display: flex; gap: 10px; justify-content: center; padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid #f3f4f6; flex-wrap: wrap; }
         
         .history-container { overflow-y: auto; flex-grow: 1; padding: 0; background: #ffffff; }
         .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
@@ -55,7 +61,7 @@
         .history-table td { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
 
         /* BUTTONS */
-        button.btn { background: #0f172a; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
+        button.btn { background: #0f172a; color: #fff; border: none; padding: 9px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85em; transition: 0.2s; }
         button.btn:hover { background: #334155; }
         button.btn-outline { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
         button.btn-outline:hover { background: #f8fafc; }
@@ -68,9 +74,11 @@
         @media (max-width: 768px) {
             body { overflow: auto; }
             .main-content { flex-direction: column; height: auto; overflow: visible; padding: 15px; }
-            .directory-pane { width: 100%; height: 280px; flex-shrink: 0; }
+            .directory-pane { width: 100%; height: 320px; flex-shrink: 0; }
             .passbook-pane { width: 100%; overflow: visible; }
             .pb-bal { font-size: 1.8em; }
+            .pb-actions { flex-direction: column; gap: 8px; }
+            .pb-actions button { width: 100%; }
         }
     </style>
 </head>
@@ -90,10 +98,13 @@
         <div class="directory-pane">
             <div class="pane-header">
                 <h3>Directory</h3>
-                <!-- ADMIN ONLY BUTTON -->
-                <button class="btn btn-outline admin-only hidden" onclick="openAddAccountModal()" style="padding: 6px 12px; font-size: 0.8em;">+ Add New</button>
+                <button class="btn btn-outline admin-only hidden" onclick="openAddAccountModal()" style="padding: 6px 10px; font-size: 0.75em;">+ Add New</button>
             </div>
             
+            <div class="search-box-container">
+                <input type="text" id="account-search" class="search-input" placeholder="Search accounts..." onkeyup="filterAccounts()">
+            </div>
+
             <div class="tab-group">
                 <div class="tab active" id="tab-vendors" onclick="switchTab('vendors')">Vendors</div>
                 <div class="tab" id="tab-finances" onclick="switchTab('finances')">Finances</div>
@@ -106,36 +117,40 @@
 
         <!-- RIGHT: PASSBOOK PANE -->
         <div class="passbook-pane" id="passbook-pane">
-            <div class="pb-header">
-                <div class="pb-type" id="pb-type">Vendor Account</div>
-                <div class="pb-name" id="pb-name">Select an Account</div>
-                <div class="pb-meta" id="pb-meta">Phone: - | GST: -</div>
-                
-                <div class="pb-bal-box">
-                    <div class="pb-bal-label">Total Outstanding Balance</div>
-                    <div class="pb-bal">₹ <span id="pb-bal">0.00</span></div>
+            <!-- WRAPPED IN ID FOR PDF EXPORT -->
+            <div id="pdf-export-area" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="pb-header">
+                    <div class="pb-type" id="pb-type">Vendor Account</div>
+                    <div class="pb-name" id="pb-name">Select an Account</div>
+                    <div class="pb-meta" id="pb-meta">Phone: - | GST: -</div>
+                    
+                    <div class="pb-bal-box">
+                        <div class="pb-bal-label">Total Outstanding Balance</div>
+                        <div class="pb-bal">₹ <span id="pb-bal">0.00</span></div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="pb-actions">
-                <button class="btn btn-green" onclick="openAddBillModal()">+ Add Due Bill</button>
-                <button class="btn btn-outline" onclick="window.location.href='master-ledger.html'">Record Payment</button>
-            </div>
-            
-            <div class="history-container">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Bill No. / Ref</th>
-                            <th>Type</th>
-                            <th style="text-align: right;">Amount (₹)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pb-history">
-                        <tr><td colspan="4" class="empty-state" style="border:none;">Select an account from the left.</td></tr>
-                    </tbody>
-                </table>
+                
+                <div class="pb-actions no-print">
+                    <button class="btn btn-green" onclick="openAddBillModal()">+ Add Due Bill</button>
+                    <button class="btn" onclick="openPayModal()">Record Payment</button>
+                    <button class="btn btn-outline" onclick="downloadPassbookPDF()">Download PDF</button>
+                </div>
+                
+                <div class="history-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description / Ref</th>
+                                <th>Type</th>
+                                <th style="text-align: right;">Amount (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pb-history">
+                            <tr><td colspan="4" class="empty-state" style="border:none;">Select an account from the left.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -156,7 +171,7 @@
         let isAdmin = false;
         let activeTab = 'vendors';
         let allVendors = [];
-        let activeAccount = null; // Stores currently selected vendor object
+        let activeAccount = null; 
 
         window.onload = () => {
             setTimeout(async () => {
@@ -202,7 +217,7 @@
             msgEl.style.color = '#ef4444';
         }
 
-        // --- NAVIGATION & TABS ---
+        // --- NAVIGATION, TABS & SEARCH ---
         function switchTab(tabName) {
             activeTab = tabName;
             document.getElementById('tab-vendors').classList.remove('active');
@@ -214,6 +229,15 @@
             document.getElementById('empty-pane').style.display = 'flex';
             
             renderList();
+        }
+
+        function filterAccounts() {
+            const query = document.getElementById('account-search').value.toLowerCase();
+            const items = document.querySelectorAll('.account-item');
+            items.forEach(item => {
+                const name = item.querySelector('.acc-name').innerText.toLowerCase();
+                item.style.display = name.includes(query) ? 'flex' : 'none';
+            });
         }
 
         async function fetchDirectory() {
@@ -258,7 +282,7 @@
         async function selectVendor(vendor, element) {
             activeAccount = vendor;
             document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
+            if (element) element.classList.add('active');
 
             document.getElementById('empty-pane').style.display = 'none';
             document.getElementById('passbook-pane').style.display = 'flex';
@@ -275,19 +299,17 @@
             const tbody = document.getElementById('pb-history');
             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history...</td></tr>`;
 
-            // Fetch Bills
             const { data: bills } = await supabaseClient
                 .from('vendor_bills')
                 .select('*')
                 .eq('vendor_id', vendorId)
                 .order('bill_date', { ascending: false });
 
-            // Fetch Payments made to this vendor from master ledger logs or daily transactions
+            // Fetch payments recorded for this vendor
             const { data: payouts } = await supabaseClient
                 .from('master_ledger_logs')
                 .select('*')
                 .eq('shop_id', currentShopId)
-                .eq('transaction_type', 'VENDOR_PAYOUT')
                 .ilike('reference_note', `%${activeAccount.name}%`);
 
             let combinedHistory = [];
@@ -297,9 +319,9 @@
                     combinedHistory.push({
                         date: new Date(b.bill_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
                         ref: b.bill_number ? `Bill #${b.bill_number}` : 'Due Bill',
-                        type: 'Due Bill (Owed)',
+                        type: 'Due Bill',
                         amount: parseFloat(b.amount),
-                        isPositive: true, // Increases what we owe
+                        isPositive: true, 
                         rawDate: new Date(b.bill_date)
                     });
                 });
@@ -307,18 +329,19 @@
 
             if (payouts) {
                 payouts.forEach(p => {
-                    combinedHistory.push({
-                        date: new Date(p.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        ref: p.reference_note || 'Payment Sent',
-                        type: 'Payment (Settled)',
-                        amount: parseFloat(Math.abs(p.amount)),
-                        isPositive: false, // Decreases what we owe
-                        rawDate: new Date(p.created_at)
-                    });
+                    if (p.amount < 0) { // Payments out
+                        combinedHistory.push({
+                            date: new Date(p.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+                            ref: p.reference_note || 'Payment Settled',
+                            type: `Payment (${p.transaction_type.replace('_', ' ')})`,
+                            amount: parseFloat(Math.abs(p.amount)),
+                            isPositive: false, 
+                            rawDate: new Date(p.created_at)
+                        });
+                    }
                 });
             }
 
-            // Sort by date descending
             combinedHistory.sort((a, b) => b.rawDate - a.rawDate);
 
             tbody.innerHTML = '';
@@ -330,7 +353,7 @@
                         <tr>
                             <td>${item.date}</td>
                             <td>${item.ref}</td>
-                            <td><strong style="color: #4b5563;">${item.type}</strong></td>
+                            <td><strong>${item.type}</strong></td>
                             <td style="text-align: right; font-weight: 700;" class="${colorClass}">${sign} ₹ ${item.amount.toFixed(2)}</td>
                         </tr>
                     `;
@@ -340,14 +363,11 @@
             }
         }
 
-        // --- ADMIN: ADD NEW ACCOUNT MODAL ---
+        // --- ADD NEW ACCOUNT ---
         async function openAddAccountModal() {
             const { value: formValues } = await Swal.fire({
                 title: 'Create New Account',
                 html: `
-                    <select id="swal-type" class="swal2-input">
-                        <option value="vendor">Vendor / Supplier</option>
-                    </select>
                     <input id="swal-name" class="swal2-input" placeholder="Account Name (Required)">
                     <input id="swal-phone" class="swal2-input" placeholder="Phone Number (Optional)">
                     <input id="swal-gst" class="swal2-input" placeholder="GST Number (Optional)">
@@ -390,12 +410,12 @@
             }
         }
 
-        // --- ADMIN / USER: ADD DUE BILL MODAL ---
+        // --- ADD DUE BILL ---
         async function openAddBillModal() {
-            if (!activeAccount) return Swal.fire('Select Account', 'Please select a vendor first.', 'warning');
+            if (!activeAccount) return Swal.fire('Select Account', 'Please select an account first.', 'warning');
 
             const { value: billData } = await Swal.fire({
-                title: `Log Due Bill for ${activeAccount.name}`,
+                title: `Add Due Bill: ${activeAccount.name}`,
                 html: `
                     <input id="swal-bill-no" class="swal2-input" placeholder="Bill / Invoice Number">
                     <input id="swal-bill-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
@@ -420,7 +440,6 @@
             });
 
             if (billData) {
-                // 1. Insert into vendor_bills table
                 const { error: billError } = await supabaseClient.from('vendor_bills').insert([{
                     shop_id: currentShopId,
                     vendor_id: activeAccount.id,
@@ -431,23 +450,124 @@
 
                 if (billError) return Swal.fire('Error', 'Failed to save bill: ' + billError.message, 'error');
 
-                // 2. Increase Vendor's Outstanding Balance
                 const newBalance = parseFloat(activeAccount.outstanding_balance || 0) + billData.amount;
-                const { error: updateError } = await supabaseClient
-                    .from('vendors')
-                    .update({ outstanding_balance: newBalance })
-                    .eq('id', activeAccount.id);
-
-                if (updateError) return Swal.fire('Error', 'Failed to update vendor balance: ' + updateError.message, 'error');
+                await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
 
                 activeAccount.outstanding_balance = newBalance;
+                Swal.fire({ title: 'Bill Logged!', text: `Added ₹${billData.amount} to balance.`, icon: 'success', timer: 1500, showConfirmButton: false });
                 
-                Swal.fire({ title: 'Bill Logged!', text: `Added ₹${billData.amount} to outstanding balance.`, icon: 'success', timer: 1500, showConfirmButton: false });
-                
-                // Refresh views
                 await fetchDirectory();
-                selectVendor(activeAccount, document.querySelector('.account-item.active'));
+                selectVendor(activeAccount);
             }
+        }
+
+        // --- RECORD PAYMENT (RESERVE, DRAWER, OR UPI) ---
+        async function openPayModal() {
+            if (!activeAccount) return Swal.fire('Select Account', 'Please select an account first.', 'warning');
+
+            const { value: payData } = await Swal.fire({
+                title: `Pay ${activeAccount.name}`,
+                html: `
+                    <input id="swal-pay-amt" class="swal2-input" type="number" placeholder="Payment Amount (₹) (Required)">
+                    <select id="swal-pay-source" class="swal2-input">
+                        <option value="RESERVE">Reserve (Vault Balance)</option>
+                        <option value="DRAWER">Shop Drawer (Today's Cash)</option>
+                        <option value="UPI">UPI / Digital (No Cash Deduction)</option>
+                    </select>
+                    <input id="swal-pay-note" class="swal2-input" placeholder="Reference Note (e.g. Bill settlement)">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Confirm Payment',
+                confirmButtonColor: '#0f172a',
+                preConfirm: () => {
+                    const amount = parseFloat(document.getElementById('swal-pay-amt').value);
+                    if (!amount || amount <= 0) {
+                        Swal.showValidationMessage('Enter a valid payment amount');
+                        return false;
+                    }
+                    return {
+                        amount: amount,
+                        source: document.getElementById('swal-pay-source').value,
+                        note: document.getElementById('swal-pay-note').value || `Paid to ${activeAccount.name}`
+                    };
+                }
+            });
+
+            if (payData) {
+                // 1. Fetch current shop vault balance if needed
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                let currentReserve = parseFloat(shopData.master_ledger_balance || 0);
+
+                if (payData.source === 'RESERVE' && payData.amount > currentReserve) {
+                    return Swal.fire('Insufficient Funds', 'Not enough balance in the Reserve Vault.', 'error');
+                }
+
+                // 2. Process based on source
+                if (payData.source === 'RESERVE') {
+                    // Deduct from Vault
+                    const newReserve = currentReserve - payData.amount;
+                    await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
+                    
+                    // Log in Master Ledger Logs
+                    await supabaseClient.from('master_ledger_logs').insert([{
+                        shop_id: currentShopId,
+                        transaction_type: 'VENDOR_PAYOUT',
+                        reference_note: `${payData.note} (Paid via Reserve)`,
+                        amount: -payData.amount
+                    }]);
+                } 
+                else if (payData.source === 'DRAWER') {
+                    // Log as Expense in daily drawer
+                    await supabaseClient.from('daily_transactions').insert([{
+                        shop_id: currentShopId,
+                        transaction_type: 'EXPENSE',
+                        category: 'vendor',
+                        payment_method: 'CASH',
+                        amount: payData.amount,
+                        vendor_id: activeAccount.id,
+                        reference_note: `${payData.note} (Paid from Drawer)`,
+                        status: 'open'
+                    }]);
+                }
+                else if (payData.source === 'UPI') {
+                    // Log as UPI Expense in daily drawer (doesn't drain cash)
+                    await supabaseClient.from('daily_transactions').insert([{
+                        shop_id: currentShopId,
+                        transaction_type: 'EXPENSE',
+                        category: 'vendor',
+                        payment_method: 'UPI',
+                        amount: payData.amount,
+                        vendor_id: activeAccount.id,
+                        reference_note: `${payData.note} (Paid via UPI)`,
+                        status: 'open'
+                    }]);
+                }
+
+                // 3. Deduct from Vendor Outstanding Balance
+                const newBalance = parseFloat(activeAccount.outstanding_balance || 0) - payData.amount;
+                await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
+
+                activeAccount.outstanding_balance = newBalance;
+                Swal.fire({ title: 'Payment Recorded!', text: `Successfully paid ₹${payData.amount} via ${payData.source}.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                
+                await fetchDirectory();
+                selectVendor(activeAccount);
+            }
+        }
+
+        // --- DOWNLOAD PDF STATEMENT ---
+        function downloadPassbookPDF() {
+            if (!activeAccount) return;
+            const element = document.getElementById('pdf-export-area');
+            const opt = {
+                margin:       10,
+                filename:     `${activeAccount.name}_Passbook.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().from(element).set(opt).save();
         }
     </script>
 </body>
