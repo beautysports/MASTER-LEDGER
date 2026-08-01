@@ -135,7 +135,7 @@
 
     </main>
 
-    <script>
+   <script>
         let currentShopId = null;
         let activeStaffId = null;
         let currentYear = new Date().getFullYear();
@@ -145,9 +145,25 @@
 
         window.onload = () => {
             setTimeout(async () => {
-                const { data: userData } = await supabaseClient.auth.getUser();
-                if (userData && userData.user) {
-                    const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
+                try {
+                    const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+                    
+                    if (authError || !userData || !userData.user) {
+                        document.getElementById('unauthorized').innerText = "ACCESS DENIED: Not logged in.";
+                        return;
+                    }
+
+                    const { data: profile, error: profileError } = await supabaseClient
+                        .from('user_profiles')
+                        .select('role, shop_id')
+                        .eq('id', userData.user.id)
+                        .single();
+
+                    if (profileError) {
+                        document.getElementById('unauthorized').innerText = "Database Error: " + profileError.message;
+                        return;
+                    }
+
                     if (profile && profile.role === 'admin') {
                         currentShopId = profile.shop_id;
                         document.getElementById('unauthorized').classList.add('hidden');
@@ -156,14 +172,21 @@
                     } else {
                         document.getElementById('unauthorized').innerText = "ACCESS DENIED: Admin Privileges Required.";
                     }
+                } catch (err) {
+                    document.getElementById('unauthorized').innerText = "System Error: " + err.message;
                 }
             }, 600);
         };
 
         async function loadStaffList() {
-            const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', currentShopId);
+            const { data: staff, error } = await supabaseClient.from('staff').select('id, name').eq('shop_id', currentShopId);
             const list = document.getElementById('staff-list');
             list.innerHTML = '';
+
+            if (error) {
+                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #ef4444;">Error loading staff.</div>`;
+                return;
+            }
 
             if (staff && staff.length > 0) {
                 staff.forEach(s => {
@@ -198,26 +221,27 @@
             const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
             days.forEach(d => grid.innerHTML += `<div class="cal-day-header">${d}</div>`);
 
-            // Fetch existing attendance from Supabase for this month
+            // Fetch existing attendance
             const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
             const endDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-31`;
             
-            const { data: records } = await supabaseClient.from('staff_attendance')
+            const { data: records, error } = await supabaseClient.from('staff_attendance')
                 .select('record_date, status')
                 .eq('staff_id', activeStaffId)
                 .gte('record_date', startDate)
                 .lte('record_date', endDate);
             
-            // Map database records for easy lookup
+            if (error) console.error("Error fetching attendance:", error);
+
             const attendanceMap = {};
             if (records) {
                 records.forEach(r => { attendanceMap[r.record_date] = r.status; });
             }
 
-            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); // 0-6
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); 
             const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-            // Pad blank days before the 1st
+            // Pad blank days
             for(let i = 0; i < firstDayIndex; i++) {
                 grid.innerHTML += `<div class="cal-cell empty"></div>`;
             }
@@ -225,8 +249,6 @@
             // Generate actual days
             for (let day = 1; day <= totalDaysInMonth; day++) {
                 const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                
-                // Check if database has a saved state for this day
                 const savedStatus = attendanceMap[dateStr] || 'NONE';
                 const stateIdx = STATES.indexOf(savedStatus);
                 const colorClass = savedStatus !== 'NONE' ? `state-${savedStatus}` : '';
@@ -246,33 +268,34 @@
             const dateStr = element.getAttribute('data-date');
             let currentStateIdx = parseInt(element.getAttribute('data-state'));
             
-            // Increment state
             let nextStateIdx = (currentStateIdx + 1) % STATES.length;
             const stateName = STATES[nextStateIdx];
             
-            // Instantly update UI for snappy feel
+            // Instantly update UI
             element.setAttribute('data-state', nextStateIdx);
             element.classList.remove('state-FULL', 'state-LEAVE', 'state-HALF');
             if (stateName !== 'NONE') element.classList.add(`state-${stateName}`);
             
-            // Show saving indicator
             const indicator = document.getElementById('saving-indicator');
             indicator.style.display = 'inline';
 
             // Sync with Database
             if (stateName === 'NONE') {
-                // If reset to none, delete the row to keep database clean
-                await supabaseClient.from('staff_attendance').delete()
+                const { error } = await supabaseClient.from('staff_attendance').delete()
                     .eq('staff_id', activeStaffId)
                     .eq('record_date', dateStr);
+                
+                if (error) alert("Error clearing date: " + error.message);
             } else {
-                // Upsert the new status
-                await supabaseClient.from('staff_attendance').upsert({ 
+                // FIXED: Added the onConflict parameter so Supabase knows how to handle the upsert!
+                const { error } = await supabaseClient.from('staff_attendance').upsert({ 
                     shop_id: currentShopId, 
                     staff_id: activeStaffId, 
                     record_date: dateStr, 
                     status: stateName 
-                });
+                }, { onConflict: 'staff_id,record_date' });
+
+                if (error) alert("Error saving attendance: " + error.message);
             }
             
             setTimeout(() => indicator.style.display = 'none', 500);
@@ -281,7 +304,7 @@
         // --- PAYMENT HISTORY LOGIC ---
 
         async function loadPaymentHistory() {
-            const { data: txns } = await supabaseClient.from('daily_transactions')
+            const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select('created_at, amount, payment_method')
                 .eq('staff_id', activeStaffId)
                 .eq('transaction_type', 'EXPENSE')
@@ -330,7 +353,7 @@
             if (error) return alert("Error saving payment: " + error.message);
             
             alert("Payment recorded successfully!");
-            await loadPaymentHistory(); // Refresh history table instantly
+            await loadPaymentHistory(); 
         }
     </script>
 </body>
