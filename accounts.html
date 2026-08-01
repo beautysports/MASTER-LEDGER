@@ -231,7 +231,6 @@
         async function fetchDirectory() {
             if (!currentShopId) return;
             
-            // STRICT CLASSIFICATION: Fetch all accounts for this shop
             const { data: accounts, error } = await supabaseClient
                 .from('vendors')
                 .select('*')
@@ -239,9 +238,7 @@
                 .order('name', { ascending: true });
 
             if (!error && accounts) {
-                // Vendors = account_type is 'vendor' or NULL (for legacy items)
                 allVendors = accounts.filter(a => a.account_type === 'vendor' || !a.account_type);
-                // Finances = account_type is STRICTLY 'finance'
                 allFinances = accounts.filter(a => a.account_type === 'finance');
             }
             renderList();
@@ -301,7 +298,7 @@
             // 2. Fetch Payments made from Reserve Vault
             const { data: reservePayouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`).order('created_at', { ascending: false });
             
-            // 3. STRICT CLASSIFICATION: Fetch Payments made from Shop Floor Dashboard (Cash or UPI)
+            // 3. Fetch Payments made from Shop Floor Dashboard (Cash or UPI)
             const { data: floorPayouts } = await supabaseClient.from('daily_transactions').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false });
 
             rawHistoryData = [];
@@ -338,7 +335,7 @@
                 floorPayouts.forEach(fp => {
                     rawHistoryData.push({
                         dateStr: new Date(fp.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        ref: fp.reference_note || 'Floor Payment',
+                        ref: fp.reference_note ? `Floor Note: ${fp.reference_note}` : 'Shop Floor Payment',
                         type: `Shop Floor Payout (${fp.payment_method})`,
                         amount: parseFloat(Math.abs(fp.amount)),
                         isPositive: false, 
