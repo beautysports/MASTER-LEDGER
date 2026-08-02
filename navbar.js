@@ -24,16 +24,30 @@ async function loadSidebarNavbar() {
             return;
         }
 
-        // 2. Get User Role
+        // 2. Get User Role AND Shop ID
         const { data: profile } = await supabaseClient
             .from('user_profiles')
-            .select('role')
+            .select('role, shop_id')
             .eq('id', userData.user.id)
             .single();
         
         const isAdmin = profile && profile.role === 'admin';
 
-        // 3. Apply Bulletproof Sidebar CSS
+        // 3. FETCH DYNAMIC SHOP NAME FROM DATABASE
+        let shopName = "SHOP SYSTEM"; // Fallback name
+        if (profile && profile.shop_id) {
+            const { data: shop } = await supabaseClient
+                .from('shops')
+                .select('name')
+                .eq('id', profile.shop_id)
+                .single();
+            
+            if (shop && shop.name) {
+                shopName = shop.name;
+            }
+        }
+
+        // 4. Apply Bulletproof Sidebar CSS
         const style = document.createElement('style');
         style.innerHTML = `
             /* Shift the whole page right to make room for the sidebar */
@@ -57,13 +71,15 @@ async function loadSidebarNavbar() {
 
             .sys-brand {
                 color: #ffffff;
-                font-size: 1.2em;
+                font-size: 1.1em;
                 font-weight: 800;
                 padding: 25px 20px;
                 text-align: center;
                 border-bottom: 1px solid #1e293b;
                 text-decoration: none;
                 letter-spacing: -0.5px;
+                text-transform: uppercase;
+                line-height: 1.3;
             }
 
             .sys-nav-links {
@@ -158,10 +174,10 @@ async function loadSidebarNavbar() {
         `;
         document.head.appendChild(style);
 
-        // 4. Identify the active page
+        // 5. Identify the active page
         const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
 
-        // 5. Build the links
+        // 6. Build the links based on role
         let linksHtml = `<a href="dashboard.html" class="sys-nav-link ${currentPage === 'dashboard.html' || currentPage === '' ? 'active' : ''}">Dashboard</a>`;
 
         if (isAdmin) {
@@ -172,12 +188,12 @@ async function loadSidebarNavbar() {
             `;
         }
 
-        // 6. Create and append the navbar
+        // 7. Create and append the navbar using the dynamic shop name
         const nav = document.createElement('nav');
         nav.id = 'sys-sidebar-nav';
         nav.className = 'sys-sidebar';
         nav.innerHTML = `
-            <a href="dashboard.html" class="sys-brand">Shop System</a>
+            <a href="dashboard.html" class="sys-brand">${shopName}</a>
             <div class="sys-nav-links">${linksHtml}</div>
             <button class="sys-logout-btn" id="logout-btn">Logout</button>
         `;
@@ -185,7 +201,7 @@ async function loadSidebarNavbar() {
         // Append to the END of the body so it sits on top of everything
         document.body.appendChild(nav);
 
-        // 7. Bulletproof Logout
+        // 8. Bulletproof Logout
         document.getElementById('logout-btn').addEventListener('click', async () => {
             const btn = document.getElementById('logout-btn');
             btn.innerText = 'Exiting...';
