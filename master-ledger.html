@@ -146,49 +146,63 @@
         let masterTransactions = []; // Holds consolidated ledger history
 
         window.onload = () => {
-            setTimeout(async () => {
-                try {
-                    const { data: userData, error: authError } = await window.supabaseClient.auth.getUser();
-                    if (authError || !userData || !userData.user) {
-                        failAuth("ACCESS DENIED: Not logged in.");
-                        return;
-                    }
-
-                    const { data: profile, error: profileError } = await window.supabaseClient
-                        .from('user_profiles')
-                        .select('role, shop_id')
-                        .eq('id', userData.user.id)
-                        .single();
-
-                    if (profileError) {
-                        failAuth("Database Error: " + profileError.message);
-                        return;
-                    }
-
-                    currentShopId = profile.shop_id;
-                    isAdmin = (profile.role === 'admin');
-
-                    if (!isAdmin) {
-                        failAuth("ACCESS DENIED: Owner privileges required.");
-                        return;
-                    }
-
-                    document.getElementById('unauthorized').classList.add('hidden');
-                    document.getElementById('admin-content').classList.remove('hidden');
-
-                    // Set default filter date range to current month
-                    const now = new Date();
-                    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-                    const today = now.toISOString().split('T')[0];
-                    document.getElementById('filter-date-start').value = firstDay;
-                    document.getElementById('filter-date-end').value = today;
-
-                    await loadMasterLedgerData();
-                } catch (err) {
-                    failAuth("System Error: " + err.message);
+            // Smart polling to wait for Supabase to be ready
+            let retries = 0;
+            const checkSupabase = setInterval(async () => {
+                if (typeof supabaseClient !== 'undefined') {
+                    clearInterval(checkSupabase);
+                    initializePage();
                 }
-            }, 600);
+                if (retries > 40) {
+                    clearInterval(checkSupabase);
+                    failAuth("System Error: Supabase failed to load.");
+                }
+                retries++;
+            }, 50);
         };
+
+        async function initializePage() {
+            try {
+                const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+                if (authError || !userData || !userData.user) {
+                    failAuth("ACCESS DENIED: Not logged in.");
+                    return;
+                }
+
+                const { data: profile, error: profileError } = await supabaseClient
+                    .from('user_profiles')
+                    .select('role, shop_id')
+                    .eq('id', userData.user.id)
+                    .single();
+
+                if (profileError) {
+                    failAuth("Database Error: " + profileError.message);
+                    return;
+                }
+
+                currentShopId = profile.shop_id;
+                isAdmin = (profile.role === 'admin');
+
+                if (!isAdmin) {
+                    failAuth("ACCESS DENIED: Owner privileges required.");
+                    return;
+                }
+
+                document.getElementById('unauthorized').classList.add('hidden');
+                document.getElementById('admin-content').classList.remove('hidden');
+
+                // Set default filter date range to current month
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const today = now.toISOString().split('T')[0];
+                document.getElementById('filter-date-start').value = firstDay;
+                document.getElementById('filter-date-end').value = today;
+
+                await loadMasterLedgerData();
+            } catch (err) {
+                failAuth("System Error: " + err.message);
+            }
+        }
 
         function failAuth(msg) {
             document.getElementById('loading-spinner').style.display = 'none';
@@ -201,7 +215,7 @@
             if (!currentShopId) return;
 
             // 1. Fetch Shop Reserve Balance
-            const { data: shopData } = await window.supabaseClient
+            const { data: shopData } = await supabaseClient
                 .from('shops')
                 .select('master_ledger_balance')
                 .eq('id', currentShopId)
@@ -213,7 +227,7 @@
             masterTransactions = [];
 
             // 2. Fetch Reserve / Vault adjustments
-            const { data: reserveLogs } = await window.supabaseClient
+            const { data: reserveLogs } = await supabaseClient
                 .from('master_ledger_logs')
                 .select('*')
                 .eq('shop_id', currentShopId)
@@ -236,7 +250,7 @@
             }
 
             // 3. Fetch Daily Shop Floor Transactions (JOINING vendors and staff tables)
-            const { data: dailyTxns } = await window.supabaseClient
+            const { data: dailyTxns } = await supabaseClient
                 .from('daily_transactions')
                 .select('*, vendors ( name, account_type ), staff ( name )')
                 .eq('shop_id', currentShopId)
@@ -347,13 +361,13 @@
             });
 
             if (formValues) {
-                const { data: shopData } = await window.supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
                 const newReserve = currentReserve + formValues.amount;
 
-                await window.supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
+                await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
 
-                await window.supabaseClient.from('master_ledger_logs').insert([{
+                await supabaseClient.from('master_ledger_logs').insert([{
                     shop_id: currentShopId,
                     transaction_type: 'DEPOSIT',
                     reference_note: formValues.note,
@@ -390,7 +404,7 @@
             });
 
             if (formValues) {
-                const { data: shopData } = await window.supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
 
                 if (formValues.amount > currentReserve) {
@@ -399,9 +413,9 @@
 
                 const newReserve = currentReserve - formValues.amount;
 
-                await window.supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
+                await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
 
-                await window.supabaseClient.from('master_ledger_logs').insert([{
+                await supabaseClient.from('master_ledger_logs').insert([{
                     shop_id: currentShopId,
                     transaction_type: 'WITHDRAWAL',
                     reference_note: formValues.note,
