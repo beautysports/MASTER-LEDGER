@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Ledger & Daily Closing</title>
+    <!-- SYNCHRONOUS CDN LOADING - Fixes all crashes -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
         .hidden { display: none !important; }
 
         .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
@@ -23,13 +24,11 @@
         .vault-card { background: #ffffff; padding: 30px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
         .vault-title { font-size: 0.75em; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
         .vault-amount { font-size: 3.5rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -2px; }
-        
         .vault-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
         /* FILTER & CONTROL BAR */
         .control-bar { background: #ffffff; padding: 15px 20px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        
         input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9em; outline: none; background: #f9fafb; color: #111827; font-weight: 600; }
         input:focus, select:focus { border-color: #111827; background: #fff; }
 
@@ -53,7 +52,6 @@
 
         .text-green { color: #059669; font-weight: 700; }
         .text-red { color: #dc2626; font-weight: 700; }
-
         .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 40px; flex-direction: column; }
 
         @media (max-width: 768px) {
@@ -65,8 +63,6 @@
             .control-bar { flex-direction: column; align-items: stretch; }
             .filter-group { width: 100%; flex-direction: column; align-items: stretch; }
             .filter-group input, .filter-group select { width: 100%; margin-bottom: 5px; }
-            
-            /* Mobile Hide Utility for cleaner tables */
             .mobile-hide { display: none !important; }
             .vault-amount { font-size: 2.8rem; }
         }
@@ -83,7 +79,6 @@
 
     <main class="main-content hidden" id="admin-content">
         
-        <!-- TOP RESERVE / VAULT SUMMARY CARD -->
         <div class="vault-card">
             <div>
                 <div class="vault-title">Total Reserve Fund (Vault)</div>
@@ -95,7 +90,6 @@
             </div>
         </div>
 
-        <!-- CONTROLS & FILTER BAR -->
         <div class="control-bar">
             <div class="filter-group">
                 <label style="font-size: 0.8em; font-weight: 800; color: #64748b; text-transform: uppercase;">View Source:</label>
@@ -109,11 +103,9 @@
                 <span class="mobile-hide" style="color: #9ca3af; font-size: 0.85em; font-weight: 700;">to</span>
                 <input type="date" id="filter-date-end" onchange="applyFilters()">
             </div>
-
             <button class="btn btn-outline" onclick="downloadLedgerPDF()">Download PDF Statement</button>
         </div>
 
-        <!-- TRANSACTION TABLE -->
         <div class="table-container">
             <div class="table-header-bar">
                 <h3 id="table-heading">Complete Ledger History</h3>
@@ -137,28 +129,16 @@
                 </table>
             </div>
         </div>
-
     </main>
 
     <script>
         let currentShopId = null;
         let isAdmin = false;
-        let masterTransactions = []; // Holds consolidated ledger history
+        let masterTransactions = [];
 
+        // NO MORE POLLING: Executes instantly
         window.onload = () => {
-            // Smart polling to wait for Supabase to be ready
-            let retries = 0;
-            const checkSupabase = setInterval(async () => {
-                if (typeof supabaseClient !== 'undefined') {
-                    clearInterval(checkSupabase);
-                    initializePage();
-                }
-                if (retries > 40) {
-                    clearInterval(checkSupabase);
-                    failAuth("System Error: Supabase failed to load.");
-                }
-                retries++;
-            }, 50);
+            initializePage();
         };
 
         async function initializePage() {
@@ -191,7 +171,6 @@
                 document.getElementById('unauthorized').classList.add('hidden');
                 document.getElementById('admin-content').classList.remove('hidden');
 
-                // Set default filter date range to current month
                 const now = new Date();
                 const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
                 const today = now.toISOString().split('T')[0];
@@ -214,7 +193,6 @@
         async function loadMasterLedgerData() {
             if (!currentShopId) return;
 
-            // 1. Fetch Shop Reserve Balance
             const { data: shopData } = await supabaseClient
                 .from('shops')
                 .select('master_ledger_balance')
@@ -226,7 +204,6 @@
 
             masterTransactions = [];
 
-            // 2. Fetch Reserve / Vault adjustments
             const { data: reserveLogs } = await supabaseClient
                 .from('master_ledger_logs')
                 .select('*')
@@ -249,7 +226,6 @@
                 });
             }
 
-            // 3. Fetch Daily Shop Floor Transactions (JOINING vendors and staff tables)
             const { data: dailyTxns } = await supabaseClient
                 .from('daily_transactions')
                 .select('*, vendors ( name, account_type ), staff ( name )')
@@ -261,7 +237,6 @@
                     const amt = parseFloat(txn.amount);
                     const isClosing = txn.reference_note && txn.reference_note.includes('Daily Cash Closing');
                     
-                    // Build highly detailed Particulars String
                     let details = txn.reference_note || `${txn.transaction_type} (${txn.payment_method})`;
                     if (txn.category === 'vendor' && txn.vendors) details = `Vendor: ${txn.vendors.name}` + (txn.reference_note ? ` - ${txn.reference_note}` : '');
                     if (txn.category === 'finance' && txn.vendors) details = `Finance: ${txn.vendors.name}` + (txn.reference_note ? ` - ${txn.reference_note}` : '');
@@ -280,29 +255,23 @@
                 });
             }
 
-            // Sort newest first
             masterTransactions.sort((a, b) => b.date - a.date);
-
             applyFilters();
         }
 
-        // --- TIMEZONE FIX FOR MASTER LEDGER FILTERS ---
         function applyFilters() {
             const sourceFilter = document.getElementById('ledger-source-filter').value;
             const startDateStr = document.getElementById('filter-date-start').value;
             const endDateStr = document.getElementById('filter-date-end').value;
 
-            // Generate precise local timestamps to prevent UTC bleed
             let startTimestamp = startDateStr ? new Date(`${startDateStr}T00:00:00`).getTime() : null;
             let endTimestamp = endDateStr ? new Date(`${endDateStr}T23:59:59.999`).getTime() : null;
 
             let filtered = masterTransactions.filter(item => {
                 if (sourceFilter !== 'ALL' && item.source !== sourceFilter) return false;
-                
                 const itemTime = item.date.getTime();
                 if (startTimestamp && itemTime < startTimestamp) return false;
                 if (endTimestamp && itemTime > endTimestamp) return false;
-                
                 return true;
             });
 
@@ -335,7 +304,6 @@
             }
         }
 
-        // --- MANUAL RESERVE VAULT ACTIONS ---
         async function openAddFundsModal() {
             const { value: formValues } = await Swal.fire({
                 title: 'Add Money to Reserve Vault',
