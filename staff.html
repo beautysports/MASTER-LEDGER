@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Management</title>
+    <!-- SYNCHRONOUS CDN LOADING - Fixes the undefined error -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
@@ -18,7 +20,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #auth-message { color: #64748b; font-weight: 600; font-size: 1.1em; letter-spacing: 0.5px; }
 
-        /* Flex changes to column on mobile */
         .main-content { flex-grow: 1; padding: 20px; display: flex; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; }
         
         /* DIRECTORY PANE */
@@ -37,20 +38,20 @@
         .staff-name { font-size: 1.5em; font-weight: 800; margin: 0; color: #0f172a; }
         .staff-role { font-size: 0.75em; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
         
-        /* SPLIT VIEW (Stacks on mobile) */
+        /* SPLIT VIEW */
         .split-view { display: flex; flex-grow: 1; overflow: hidden; flex-direction: row; }
         .calendar-section { flex: 1; padding: 25px; border-right: 1px solid #f3f4f6; overflow-y: auto; }
         .history-section { flex: 1; padding: 25px; overflow-y: auto; background: #f8fafc; }
         
         h4 { margin-top: 0; font-size: 0.95em; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; display: flex; justify-content: space-between;}
 
-        /* 3-CLICK CALENDAR GRID */
+        /* CALENDAR GRID */
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 15px; }
         .cal-day-header { text-align: center; font-size: 0.75em; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
         .cal-cell { aspect-ratio: 1; border-radius: 8px; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95em; cursor: pointer; user-select: none; transition: 0.15s; background: #ffffff; color: #94a3b8; }
         .cal-cell.empty { border: none; background: transparent; cursor: default; }
 
-        /* THE 3 STATES */
+        /* STATES */
         .state-FULL { background: #10b981; border-color: #10b981; color: white; }
         .state-LEAVE { background: #ef4444; border-color: #ef4444; color: white; }
         .state-HALF { background: #f59e0b; border-color: #f59e0b; color: white; }
@@ -63,7 +64,6 @@
         button.btn { background: #0f172a; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
         button.btn:hover { background: #334155; }
         
-        /* --- MOBILE OPTIMIZATION --- */
         @media (max-width: 768px) {
             body { overflow: auto; }
             .main-content { flex-direction: column; height: auto; overflow: visible; padding: 15px; }
@@ -79,16 +79,12 @@
 
     <script src="navbar.js"></script>
 
-    <!-- PROFESSIONAL LOADING SCREEN -->
     <div id="unauthorized" class="loader-container">
         <div class="spinner" id="loading-spinner"></div>
         <div id="auth-message">Verifying Admin Credentials...</div>
     </div>
 
-    <!-- MAIN APP CONTENT (Hidden until verified) -->
     <main class="main-content hidden" id="admin-content">
-        
-        <!-- LEFT: STAFF DIRECTORY -->
         <div class="directory-pane">
             <div class="pane-header">
                 <h3>Staff Team</h3>
@@ -99,7 +95,6 @@
             </div>
         </div>
 
-        <!-- RIGHT: DASHBOARD -->
         <div class="dashboard-pane" id="dashboard-pane">
             <div class="dash-header">
                 <div>
@@ -110,13 +105,11 @@
             </div>
             
             <div class="split-view">
-                <!-- CALENDAR SECTION -->
                 <div class="calendar-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px;">
                         <h4 style="border: none; padding: 0; margin: 0;">
                             <span id="calendar-month-title">Current Month</span> 
                         </h4>
-                        <!-- BATCH SAVE BUTTON -->
                         <button id="save-attendance-btn" class="btn" style="background: #10b981; display: none;" onclick="saveAttendance()">Save Changes</button>
                     </div>
                     <div style="font-size: 0.75em; color: #64748b; margin-bottom: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #f1f5f9;">
@@ -128,7 +121,6 @@
                     </div>
                 </div>
                 
-                <!-- PAYMENT HISTORY SECTION -->
                 <div class="history-section">
                     <h4>Payment History</h4>
                     <table class="history-table">
@@ -146,7 +138,6 @@
                 </div>
             </div>
         </div>
-
     </main>
 
     <script>
@@ -158,42 +149,39 @@
 
         const STATES = ['NONE', 'FULL', 'LEAVE', 'HALF'];
 
-        window.onload = () => {
-            setTimeout(async () => {
-                try {
-                    const { data: userData, error: authError } = await supabaseClient.auth.getUser();
-                    
-                    if (authError || !userData || !userData.user) {
-                        failAuth("ACCESS DENIED: Not logged in.");
-                        return;
-                    }
-
-                    const { data: profile, error: profileError } = await supabaseClient
-                        .from('user_profiles')
-                        .select('role, shop_id')
-                        .eq('id', userData.user.id)
-                        .single();
-
-                    if (profileError) {
-                        failAuth("Database Error: " + profileError.message);
-                        return;
-                    }
-
-                    if (profile && profile.role === 'admin') {
-                        currentShopId = profile.shop_id;
-                        
-                        // SUCCESS: Hide the loader, reveal the app
-                        document.getElementById('unauthorized').classList.add('hidden');
-                        document.getElementById('admin-content').classList.remove('hidden');
-                        
-                        await loadStaffList();
-                    } else {
-                        failAuth("ACCESS DENIED: Admin Privileges Required.");
-                    }
-                } catch (err) {
-                    failAuth("System Error: " + err.message);
+        // NO MORE TIMEOUT DELAYS: Executes instantly
+        window.onload = async () => {
+            try {
+                const { data: userData, error: authError } = await supabaseClient.auth.getUser();
+                
+                if (authError || !userData || !userData.user) {
+                    failAuth("ACCESS DENIED: Not logged in.");
+                    return;
                 }
-            }, 600); // 600ms delay prevents ugly flashes
+
+                const { data: profile, error: profileError } = await supabaseClient
+                    .from('user_profiles')
+                    .select('role, shop_id')
+                    .eq('id', userData.user.id)
+                    .single();
+
+                if (profileError) {
+                    failAuth("Database Error: " + profileError.message);
+                    return;
+                }
+
+                if (profile && profile.role === 'admin') {
+                    currentShopId = profile.shop_id;
+                    document.getElementById('unauthorized').classList.add('hidden');
+                    document.getElementById('admin-content').classList.remove('hidden');
+                    
+                    await loadStaffList();
+                } else {
+                    failAuth("ACCESS DENIED: Admin Privileges Required.");
+                }
+            } catch (err) {
+                failAuth("System Error: " + err.message);
+            }
         };
 
         function failAuth(msg) {
@@ -203,7 +191,6 @@
             msgEl.style.color = '#ef4444';
         }
 
-        // --- ADD STAFF LOGIC ---
         async function addNewStaff() {
             const { value: formValues } = await Swal.fire({
                 title: 'Add New Staff Member',
@@ -234,13 +221,12 @@
             }
         }
 
-        // --- FIXED: Sorted alphabetically by name ---
         async function loadStaffList() {
             const { data: staff, error } = await supabaseClient
                 .from('staff')
                 .select('id, name')
                 .eq('shop_id', currentShopId)
-                .order('name', { ascending: true }); // No more 400 Bad Request!
+                .order('name', { ascending: true }); 
             
             const list = document.getElementById('staff-list');
             list.innerHTML = '';
@@ -272,7 +258,6 @@
             await loadPaymentHistory();
         }
 
-        // --- CALENDAR UI & DATABASE BATCH SYNC ---
         async function generateCalendar() {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
@@ -316,10 +301,7 @@
                 const colorClass = savedStatus !== 'NONE' ? `state-${savedStatus}` : '';
 
                 grid.innerHTML += `
-                    <div class="cal-cell ${colorClass}" 
-                         data-state="${stateIdx}" 
-                         data-date="${dateStr}" 
-                         onclick="toggleAttendance(this)">
+                    <div class="cal-cell ${colorClass}" data-state="${stateIdx}" data-date="${dateStr}" onclick="toggleAttendance(this)">
                         ${day}
                     </div>
                 `;
@@ -382,11 +364,9 @@
 
             btn.innerText = "Saved!";
             btn.style.background = "#059669";
-            
             setTimeout(() => { generateCalendar(); }, 800);
         }
 
-        // --- PAYMENT HISTORY LOGIC ---
         async function loadPaymentHistory() {
             const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select('created_at, amount, payment_method')
@@ -451,7 +431,7 @@
                 payment_method: 'CASH',
                 amount: amount,
                 reference_note: 'Staff Payout',
-                status: 'open' // Logs it directly to the active shop floor drawer!
+                status: 'open' 
             }]);
 
             if (error) {
