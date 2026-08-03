@@ -317,7 +317,13 @@
             element.classList.remove('state-FULL', 'state-LEAVE', 'state-HALF');
             if (stateName !== 'NONE') element.classList.add(`state-${stateName}`);
             
-            document.getElementById('save-attendance-btn').style.display = 'block';
+            // THE FIX: Completely reset and unlock the button every time a change is made
+            const btn = document.getElementById('save-attendance-btn');
+            btn.style.display = 'block';
+            btn.innerText = 'Save Changes';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.background = '#10b981';
         }
 
         async function saveAttendance() {
