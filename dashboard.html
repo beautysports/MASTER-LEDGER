@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shop Dashboard</title>
+    <!-- SYNCHRONOUS CDN LOADING - Fixes all crashes -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
@@ -54,6 +56,7 @@
         
         button.vault-btn { background-color: #10b981; color: #fff; border: none; font-weight: 700; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 20px; font-size: 0.9em; transition: 0.2s; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2); }
         button.vault-btn:hover { background-color: #059669; }
+        button.vault-btn:disabled { background-color: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
         .hidden { display: none !important; }
 
@@ -80,8 +83,6 @@
             .summary-row { gap: 20px; }
             .master-balance { font-size: 4rem; }
             .summary-stat strong { font-size: 1.8rem; }
-            
-            /* Mobile Hide Utility */
             .mobile-hide { display: none !important; }
         }
     </style>
@@ -103,7 +104,7 @@
         <div class="card summary-header">
             <div class="master-label">Physical Cash Drawer Balance</div>
             <div class="master-balance">₹ <span id="display-balance">0.00</span></div>
-            <button class="vault-btn admin-only hidden" onclick="transferToVault()">Move Cash to Vault</button>
+            <button class="vault-btn admin-only hidden" id="transfer-btn" onclick="transferToVault()">Move Cash to Vault</button>
             <div class="summary-row">
                 <div class="summary-stat"><span>Cash In</span> <strong class="text-green">₹ <span id="display-income">0.00</span></strong></div>
                 <div class="summary-stat"><span>Cash Out</span> <strong class="text-red">₹ <span id="display-expense">0.00</span></strong></div>
@@ -206,6 +207,7 @@
 
         window.onload = () => {
             document.getElementById('active-date').valueAsDate = new Date();
+            // Removed the arbitrary 600ms delay since loading is synchronous now
             setTimeout(async () => {
                 const { data: userData } = await supabaseClient.auth.getUser();
                 if (userData && userData.user) {
@@ -222,7 +224,7 @@
                         await loadDashboardData();
                     }
                 }
-            }, 600); 
+            }, 50); 
         };
 
         function onDateChanged() { loadDashboardData(); }
@@ -267,7 +269,6 @@
             if (finances) finances.forEach(f => fSelect.innerHTML += `<option value="${f.id}">${f.name}</option>`);
         }
 
-        // --- TIMEZONE FIX: Safely bounding the current date string in local time to UTC ---
         function getLocalDayBounds(dateString) {
             const start = new Date(`${dateString}T00:00:00`).toISOString();
             const end = new Date(`${dateString}T23:59:59.999`).toISOString();
@@ -344,7 +345,6 @@
                         </td>
                     ` : '';
                     
-                    // Added mobile-hide class to non-essential columns for mobile view
                     tbody.innerHTML += `
                         <tr>
                             <td class="mobile-hide" style="color: #64748b; font-weight: 600; font-size: 0.85em;">${timeStr}</td>
@@ -367,11 +367,9 @@
             document.getElementById('display-balance').innerText = (cashIn - cashOut).toFixed(2);
         }
 
-        // --- TIMEZONE FIX: Properly append local time to explicit selected date ---
         function getSubmissionTimestamp() {
             const dateVal = document.getElementById('active-date').value;
             const now = new Date();
-            // Forces the local HH:MM:SS onto the selected YYYY-MM-DD, then maps to UTC
             const localString = `${dateVal}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
             return new Date(localString).toISOString(); 
         }
@@ -468,13 +466,11 @@
             const newAmount = parseFloat(newAmountStr);
             if (isNaN(newAmount) || newAmount <= 0) return Swal.fire('Error', 'Invalid amount.', 'error');
             
-            // NOTE: Simple edit does not reverse complex Kuri balances. Use Delete for those.
             const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
             if (error) return Swal.fire('Database Error', error.message, 'error');
             await loadDashboardData();
         }
 
-        // --- NEW: Bulletproof Delete with Account Reversal ---
         async function deleteTransaction(txnId, amount, vendorIdStr, type, category) {
             const result = await Swal.fire({
                 title: 'Delete Record?',
@@ -486,11 +482,9 @@
             });
 
             if (result.isConfirmed) {
-                // 1. Delete from Daily Ledger
                 const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', txnId);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
 
-                // 2. Reverse Sync for Vendors/Kuri
                 if (vendorIdStr && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                     const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
                     if (vData) {
@@ -504,53 +498,87 @@
             }
         }
 
-        // --- NEW: Transfer to Master Vault ---
+        // --- THE BULLETPROOF VAULT TRANSFER ---
         async function transferToVault() {
-            const currentCash = parseFloat(document.getElementById('display-balance').innerText);
+            const btn = document.getElementById('transfer-btn');
+            const selectedDate = document.getElementById('active-date').value;
             
-            if (currentCash <= 0) {
-                return Swal.fire('Drawer Empty', 'There is no physical cash to transfer to the vault today.', 'warning');
-            }
+            if (!selectedDate) return Swal.fire('Error', 'Please select a date first.', 'error');
 
-            const { value: confirmTransfer } = await Swal.fire({
-                title: 'Close Day & Transfer Cash',
-                html: `Transfer <strong>₹${currentCash.toFixed(2)}</strong> from the dashboard drawer into the Master Reserve Vault?`,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                confirmButtonText: 'Yes, Transfer to Vault'
-            });
+            // 1. Lock the UI immediately
+            btn.innerText = 'Transferring...';
+            btn.disabled = true;
 
-            if (confirmTransfer) {
-                // 1. Fetch current Vault Balance
-                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-                const newVaultBal = parseFloat(shopData.master_ledger_balance || 0) + currentCash;
+            try {
+                // 2. Fetch actual db records, NOT DOM text
+                const { start, end } = getLocalDayBounds(selectedDate);
+                const { data: txns, error: fetchErr } = await supabaseClient.from('daily_transactions')
+                    .select('amount, transaction_type, payment_method')
+                    .eq('shop_id', currentShopId)
+                    .gte('created_at', start)
+                    .lte('created_at', end);
 
-                // 2. Update Vault Balance
-                await supabaseClient.from('shops').update({ master_ledger_balance: newVaultBal }).eq('id', currentShopId);
+                if (fetchErr) throw fetchErr;
 
-                // 3. Log Deposit in Master Ledger
-                await supabaseClient.from('master_ledger_logs').insert([{
-                    shop_id: currentShopId,
-                    transaction_type: 'DEPOSIT',
-                    reference_note: 'Daily Cash Closing Transfer',
-                    amount: currentCash
-                }]);
+                // 3. Server-side Math calculation
+                let dbVerifiedCash = 0;
+                if (txns) {
+                    txns.forEach(txn => {
+                        if (txn.payment_method === 'CASH') {
+                            if (txn.transaction_type === 'INCOME') dbVerifiedCash += parseFloat(txn.amount);
+                            if (txn.transaction_type === 'EXPENSE') dbVerifiedCash -= parseFloat(txn.amount);
+                        }
+                    });
+                }
 
-                // 4. Log Expense on Daily Ledger to Zero out the drawer
-                await supabaseClient.from('daily_transactions').insert([{
-                    shop_id: currentShopId, 
-                    transaction_type: 'EXPENSE', 
-                    category: 'OTHER', 
-                    payment_method: 'CASH', 
-                    amount: currentCash, 
-                    reference_note: 'Transferred to Master Vault',
-                    status: 'closed', // Marks it differently from normal transactions
-                    created_at: getSubmissionTimestamp()
-                }]);
+                // 4. Deny transfer if balance is zero or negative
+                if (dbVerifiedCash <= 0) {
+                    Swal.fire('Drawer Empty', 'There is no verified physical cash to transfer for this date.', 'warning');
+                    return; // Exits, finally block unlocks button
+                }
 
-                Swal.fire('Vault Updated', `Successfully transferred ₹${currentCash.toFixed(2)} to the Master Vault.`, 'success');
-                await loadDashboardData();
+                const { value: confirmTransfer } = await Swal.fire({
+                    title: 'Close Day & Transfer Cash',
+                    html: `Transfer verified <strong>₹${dbVerifiedCash.toFixed(2)}</strong> from the dashboard drawer into the Master Reserve Vault?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#10b981',
+                    confirmButtonText: 'Yes, Transfer to Vault'
+                });
+
+                if (confirmTransfer) {
+                    const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                    const newVaultBal = parseFloat(shopData.master_ledger_balance || 0) + dbVerifiedCash;
+
+                    await supabaseClient.from('shops').update({ master_ledger_balance: newVaultBal }).eq('id', currentShopId);
+
+                    await supabaseClient.from('master_ledger_logs').insert([{
+                        shop_id: currentShopId,
+                        transaction_type: 'DEPOSIT',
+                        reference_note: `Daily Cash Closing Transfer (${selectedDate})`,
+                        amount: dbVerifiedCash
+                    }]);
+
+                    await supabaseClient.from('daily_transactions').insert([{
+                        shop_id: currentShopId, 
+                        transaction_type: 'EXPENSE', 
+                        category: 'OTHER', 
+                        payment_method: 'CASH', 
+                        amount: dbVerifiedCash, 
+                        reference_note: 'Transferred to Master Vault',
+                        status: 'closed',
+                        created_at: getSubmissionTimestamp()
+                    }]);
+
+                    Swal.fire('Vault Updated', `Successfully transferred ₹${dbVerifiedCash.toFixed(2)} to the Master Vault.`, 'success');
+                    await loadDashboardData();
+                }
+            } catch (err) {
+                Swal.fire('Database Error', err.message, 'error');
+            } finally {
+                // Unlock the UI
+                btn.innerText = 'Move Cash to Vault';
+                btn.disabled = false;
             }
         }
     </script>
