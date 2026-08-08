@@ -4,67 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Ledger & Daily Closing</title>
-    <!-- SYNCHRONOUS CDN LOADING - Fixes all crashes -->
+    
+    <!-- BOOTSTRAP 5 & GOOGLE FONTS -->
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- SYNCHRONOUS SUPABASE CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .hidden { display: none !important; }
-
-        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
-        .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #auth-message { color: #64748b; font-weight: 600; font-size: 1.1em; letter-spacing: 0.5px; }
-
-        .main-content { flex-grow: 1; padding: 25px; display: flex; flex-direction: column; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; overflow-y: auto; }
+        body { font-family: 'Public Sans', sans-serif; background-color: #FDFBF7; }
         
-        /* TOP BALANCE CARD */
-        .vault-card { background: #ffffff; padding: 30px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
-        .vault-title { font-size: 0.75em; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .vault-amount { font-size: 3.5rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -2px; }
-        .vault-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-        /* FILTER & CONTROL BAR */
-        .control-bar { background: #ffffff; padding: 15px 20px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
-        .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9em; outline: none; background: #f9fafb; color: #111827; font-weight: 600; }
-        input:focus, select:focus { border-color: #111827; background: #fff; }
-
-        /* LEDGER TABLE */
-        .table-container { background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .table-header-bar { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
-        .table-header-bar h3 { margin: 0; font-size: 1.1em; font-weight: 700; color: #0f172a; }
+        .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; border: 1px solid rgba(197, 160, 89, 0.15); }
+        .card-hover:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); transform: translateY(-3px); }
         
-        .history-container { overflow-y: auto; flex-grow: 1; }
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-        .history-table th { text-align: left; padding: 14px 20px; border-bottom: 2px solid #cbd5e1; color: #475569; font-weight: 800; text-transform: uppercase; font-size: 0.75em; background: #f8fafc; position: sticky; top: 0; }
-        .history-table td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
-        .history-table tr:hover td { background: #f8fafc; }
+        .text-gold { color: #C5A059; }
+        .bg-gold-subtle { background-color: rgba(197, 160, 89, 0.1); }
+        .border-gold { border-color: rgba(197, 160, 89, 0.3) !important; }
 
-        button.btn { background: #0f172a; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 0.9em; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        button.btn:hover { background: #334155; transform: translateY(-1px); }
-        button.btn-outline { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; box-shadow: none; }
-        button.btn-outline:hover { background: #f8fafc; }
-        button.btn-green { background: #10b981; }
-        button.btn-green:hover { background: #047857; }
+        .form-control, .form-select { background: #F8F9FA; border: 1px solid #EAE0D5; padding: 10px 15px; border-radius: 10px; font-weight: 500; transition: 0.2s; }
+        .form-control:focus, .form-select:focus { background: #FFF; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.15); border-color: #C5A059; outline: none; }
+        
+        .field-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+        
+        .btn-custom { background-color: #2C2C2C; color: white; border: none; font-weight: 800; padding: 12px 20px; border-radius: 10px; transition: 0.2s; letter-spacing: 0.5px; }
+        .btn-custom:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: white; }
+        .btn-gold { background-color: #C5A059; color: white; }
+        .btn-gold:hover { background-color: #b08d4b; color: white; }
 
-        .text-green { color: #059669; font-weight: 700; }
-        .text-red { color: #dc2626; font-weight: 700; }
-        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 40px; flex-direction: column; }
+        .empty-state { display: flex; align-items: center; justify-content: center; padding: 40px; color: #9ca3af; font-size: 0.95em; text-align: center; flex-direction: column; }
 
         @media (max-width: 768px) {
-            body { overflow: auto; height: auto; }
-            .main-content { height: auto; overflow: visible; padding: 15px; }
-            .vault-card { flex-direction: column; align-items: flex-start; }
-            .vault-actions { width: 100%; }
-            .vault-actions button { flex: 1; }
-            .control-bar { flex-direction: column; align-items: stretch; }
-            .filter-group { width: 100%; flex-direction: column; align-items: stretch; }
-            .filter-group input, .filter-group select { width: 100%; margin-bottom: 5px; }
             .mobile-hide { display: none !important; }
-            .vault-amount { font-size: 2.8rem; }
+            .vault-actions { flex-direction: column; width: 100%; }
+            .vault-actions button { width: 100%; margin-bottom: 10px; }
+            .filter-group { flex-direction: column; align-items: stretch !important; width: 100%; }
+            .filter-group > * { margin-bottom: 10px; }
         }
     </style>
 </head>
@@ -72,190 +50,172 @@
 
     <script src="navbar.js"></script>
 
-    <div id="unauthorized" class="loader-container">
-        <div class="spinner" id="loading-spinner"></div>
-        <div id="auth-message">Verifying Master Ledger Access...</div>
-    </div>
-
-    <main class="main-content hidden" id="admin-content">
+    <main class="container-fluid py-4 mb-5 d-none" id="admin-content">
         
-        <div class="vault-card">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 pb-3 border-bottom">
             <div>
-                <div class="vault-title">Total Reserve Fund (Vault)</div>
-                <div class="vault-amount">₹ <span id="vault-balance">0.00</span></div>
-            </div>
-            <div class="vault-actions">
-                <button class="btn btn-green" onclick="openAddFundsModal()">+ Add Money to Reserve</button>
-                <button class="btn btn-outline" onclick="openWithdrawModal()">- Withdraw Money</button>
+                <h3 class="fw-bold m-0" style="color: #2C2C2C;">Global Reserve Vault</h3>
+                <p class="text-muted small fw-semibold mb-0 mt-1">Master ledger and manual capital adjustments</p>
             </div>
         </div>
 
-        <div class="control-bar">
-            <div class="filter-group">
-                <label style="font-size: 0.8em; font-weight: 800; color: #64748b; text-transform: uppercase;">View Source:</label>
-                <select id="ledger-source-filter" onchange="applyFilters()">
+        <!-- VAULT HERO CARD -->
+        <div class="card card-hover border-0 shadow-lg mb-4" style="background: linear-gradient(135deg, #1C1C1C 0%, #3A3A3A 100%); color: white; border-radius: 20px;">
+            <div class="card-body p-4 p-md-5 d-flex flex-column flex-md-row justify-content-between align-items-md-center position-relative overflow-hidden">
+                <div class="z-1 mb-4 mb-md-0">
+                    <span class="badge bg-gold-subtle text-gold px-3 py-1 rounded-pill fw-bold mb-3" style="letter-spacing: 1px; border: 1px solid rgba(197,160,89,0.3);">
+                        🏦 MASTER BALANCE
+                    </span>
+                    <h1 class="display-4 fw-bold mb-0 text-white">₹ <span id="vault-balance">0.00</span></h1>
+                </div>
+                <div class="vault-actions z-1 d-flex gap-2">
+                    <button class="btn btn-custom btn-gold shadow-sm" onclick="openAddFundsModal()">+ DEPOSIT</button>
+                    <button class="btn btn-light fw-bold shadow-sm" style="border-radius: 10px; color: #2C2C2C;" onclick="openWithdrawModal()">- WITHDRAW</button>
+                </div>
+                <!-- Decorative SVG -->
+                <div class="position-absolute start-50 top-50 translate-middle opacity-10 pe-none" style="z-index: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="card bg-white border-0 shadow-sm p-3 mb-4 rounded-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 no-print">
+            <div class="filter-group d-flex align-items-center gap-2 w-100">
+                <select id="ledger-source-filter" class="form-select fw-bold w-auto" onchange="applyFilters()">
                     <option value="ALL">All Transactions</option>
-                    <option value="RESERVE">Reserve Adjustments Only</option>
+                    <option value="RESERVE">Vault Adjustments Only</option>
                     <option value="DAILY">Shop Floor Only</option>
                 </select>
-                
-                <input type="date" id="filter-date-start" onchange="applyFilters()">
-                <span class="mobile-hide" style="color: #9ca3af; font-size: 0.85em; font-weight: 700;">to</span>
-                <input type="date" id="filter-date-end" onchange="applyFilters()">
+                <input type="date" id="filter-date-start" class="form-control w-auto" onchange="applyFilters()">
+                <span class="mobile-hide text-muted fw-bold px-2">to</span>
+                <input type="date" id="filter-date-end" class="form-control w-auto" onchange="applyFilters()">
             </div>
-            <button class="btn btn-outline" onclick="downloadLedgerPDF()">Download PDF Statement</button>
+            <button class="btn btn-outline-dark fw-bold px-4" style="border-radius: 10px; white-space: nowrap;" onclick="downloadLedgerPDF()">Download PDF</button>
         </div>
 
-        <div class="table-container">
-            <div class="table-header-bar">
-                <h3 id="table-heading">Complete Ledger History</h3>
-                <span style="font-size: 0.85em; font-weight: 700; color: #64748b;" id="record-count">Loading entries...</span>
+        <!-- LEDGER TABLE -->
+        <div class="card card-hover bg-white border-0 shadow-sm overflow-hidden" id="pdf-export-area">
+            <div class="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold m-0" style="color: #2C2C2C;">Consolidated Ledger</h5>
+                <span class="badge bg-light text-muted border px-3 py-2" id="record-count">Loading...</span>
             </div>
             
-            <div class="history-container" id="pdf-export-area">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>Date & Time</th>
-                            <th class="mobile-hide">Source</th>
-                            <th>Particulars / Reference</th>
-                            <th>Type</th>
-                            <th style="text-align: right;">Amount (₹)</th>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 table-hover">
+                    <thead class="bg-light" style="border-top: 1px solid #F0F0F0; border-bottom: 2px solid #EAE0D5;">
+                        <tr class="small text-muted fw-bold text-uppercase" style="letter-spacing: 0.5px;">
+                            <th class="ps-4 py-3 border-0">Date</th>
+                            <th class="text-center py-3 border-0">Type</th>
+                            <th class="py-3 border-0 mobile-hide">Details</th>
+                            <th class="text-end pe-4 py-3 border-0">Amount (₹)</th>
                         </tr>
                     </thead>
                     <tbody id="ledger-body">
-                        <tr><td colspan="5" class="empty-state">Loading transaction history...</td></tr>
+                        <tr><td colspan="4" class="empty-state">Loading ledger history...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         let currentShopId = null;
         let isAdmin = false;
         let masterTransactions = [];
 
-        // NO MORE POLLING: Executes instantly
-        window.onload = () => {
-            initializePage();
-        };
-
-        async function initializePage() {
+        window.onload = async () => {
             try {
                 const { data: userData, error: authError } = await supabaseClient.auth.getUser();
                 if (authError || !userData || !userData.user) {
-                    failAuth("ACCESS DENIED: Not logged in.");
+                    window.location.replace('index.html');
                     return;
                 }
 
-                const { data: profile, error: profileError } = await supabaseClient
-                    .from('user_profiles')
-                    .select('role, shop_id')
-                    .eq('id', userData.user.id)
-                    .single();
+                const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
+                if (profile) {
+                    if (profile.role !== 'admin') {
+                        window.location.replace('dashboard.html');
+                        return;
+                    }
+                    currentShopId = profile.shop_id;
+                    isAdmin = true;
 
-                if (profileError) {
-                    failAuth("Database Error: " + profileError.message);
-                    return;
+                    document.getElementById('admin-content').classList.remove('d-none');
+
+                    const now = new Date();
+                    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                    const today = now.toISOString().split('T')[0];
+                    document.getElementById('filter-date-start').value = firstDay;
+                    document.getElementById('filter-date-end').value = today;
+
+                    await loadMasterLedgerData();
                 }
-
-                currentShopId = profile.shop_id;
-                isAdmin = (profile.role === 'admin');
-
-                if (!isAdmin) {
-                    failAuth("ACCESS DENIED: Owner privileges required.");
-                    return;
-                }
-
-                document.getElementById('unauthorized').classList.add('hidden');
-                document.getElementById('admin-content').classList.remove('hidden');
-
-                const now = new Date();
-                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-                const today = now.toISOString().split('T')[0];
-                document.getElementById('filter-date-start').value = firstDay;
-                document.getElementById('filter-date-end').value = today;
-
-                await loadMasterLedgerData();
             } catch (err) {
-                failAuth("System Error: " + err.message);
+                console.error(err);
             }
-        }
-
-        function failAuth(msg) {
-            document.getElementById('loading-spinner').style.display = 'none';
-            const msgEl = document.getElementById('auth-message');
-            msgEl.innerText = msg;
-            msgEl.style.color = '#ef4444';
-        }
+        };
 
         async function loadMasterLedgerData() {
             if (!currentShopId) return;
 
-            const { data: shopData } = await supabaseClient
-                .from('shops')
-                .select('master_ledger_balance')
-                .eq('id', currentShopId)
-                .single();
-
-            const reserveBal = parseFloat(shopData?.master_ledger_balance || 0);
-            document.getElementById('vault-balance').innerText = reserveBal.toFixed(2);
+            const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+            document.getElementById('vault-balance').innerText = parseFloat(shopData?.master_ledger_balance || 0).toFixed(2);
 
             masterTransactions = [];
 
-            const { data: reserveLogs } = await supabaseClient
-                .from('master_ledger_logs')
-                .select('*')
-                .eq('shop_id', currentShopId)
-                .order('created_at', { ascending: false });
+            // 1. Fetch Vault (Reserve) Logs
+            const { data: reserveLogs } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).order('created_at', { ascending: false });
 
             if (reserveLogs) {
                 reserveLogs.forEach(log => {
-                    const amt = parseFloat(log.amount);
                     masterTransactions.push({
                         id: log.id,
-                        date: new Date(log.created_at),
-                        dateStr: new Date(log.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        rawDate: new Date(log.created_at),
+                        dateStr: new Date(log.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        timeStr: new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
                         source: 'RESERVE',
-                        sourceLabel: 'Vault',
-                        ref: log.reference_note || 'Vault Adjustment',
-                        type: amt >= 0 ? 'INCOME' : 'EXPENSE',
-                        amount: Math.abs(amt)
+                        badge: 'VAULT',
+                        ref: log.reference_note || 'Manual Adjustment',
+                        isPositive: parseFloat(log.amount) >= 0,
+                        amount: Math.abs(parseFloat(log.amount))
                     });
                 });
             }
 
-            const { data: dailyTxns } = await supabaseClient
-                .from('daily_transactions')
-                .select('*, vendors ( name, account_type ), staff ( name )')
-                .eq('shop_id', currentShopId)
-                .order('created_at', { ascending: false });
+            // 2. Fetch Shop Floor (Daily) Logs
+            const { data: dailyTxns } = await supabaseClient.from('daily_transactions').select('*, vendors ( name ), staff ( name )').eq('shop_id', currentShopId).order('created_at', { ascending: false });
 
             if (dailyTxns) {
                 dailyTxns.forEach(txn => {
-                    const amt = parseFloat(txn.amount);
                     const isClosing = txn.reference_note && txn.reference_note.includes('Daily Cash Closing');
-                    
-                    let details = txn.reference_note || `${txn.transaction_type} (${txn.payment_method})`;
-                    if (txn.category === 'vendor' && txn.vendors) details = `Vendor: ${txn.vendors.name}` + (txn.reference_note ? ` - ${txn.reference_note}` : '');
-                    if (txn.category === 'finance' && txn.vendors) details = `Finance: ${txn.vendors.name}` + (txn.reference_note ? ` - ${txn.reference_note}` : '');
-                    if (txn.category === 'staff' && txn.staff) details = `Staff: ${txn.staff.name}` + (txn.reference_note ? ` - ${txn.reference_note}` : '');
+                    let details = txn.reference_note || '-';
+                    if (txn.category === 'vendor' && txn.vendors) details = `Vendor: ${txn.vendors.name}`;
+                    if (txn.category === 'finance' && txn.vendors) details = `Finance: ${txn.vendors.name}`;
+                    if (txn.category === 'staff' && txn.staff) details = `Staff: ${txn.staff.name}`;
+
+                    let badge = txn.payment_method === 'UPI' ? 'UPI' : 'CASH';
+                    if (isClosing) badge = 'SWEEP';
 
                     masterTransactions.push({
                         id: txn.id,
-                        date: new Date(txn.created_at),
-                        dateStr: new Date(txn.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                        rawDate: new Date(txn.created_at),
+                        dateStr: new Date(txn.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+                        timeStr: new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
                         source: 'DAILY',
-                        sourceLabel: isClosing ? 'Floor Closing' : 'Floor Entry',
+                        badge: badge,
                         ref: details,
-                        type: txn.transaction_type,
-                        amount: amt
+                        isPositive: txn.transaction_type === 'INCOME',
+                        amount: parseFloat(txn.amount)
                     });
                 });
             }
 
-            masterTransactions.sort((a, b) => b.date - a.date);
+            masterTransactions.sort((a, b) => b.rawDate - a.rawDate);
             applyFilters();
         }
 
@@ -269,7 +229,7 @@
 
             let filtered = masterTransactions.filter(item => {
                 if (sourceFilter !== 'ALL' && item.source !== sourceFilter) return false;
-                const itemTime = item.date.getTime();
+                const itemTime = item.rawDate.getTime();
                 if (startTimestamp && itemTime < startTimestamp) return false;
                 if (endTimestamp && itemTime > endTimestamp) return false;
                 return true;
@@ -281,93 +241,81 @@
         function renderTable(data) {
             const tbody = document.getElementById('ledger-body');
             tbody.innerHTML = '';
-            document.getElementById('record-count').innerText = `Showing ${data.length} records`;
+            document.getElementById('record-count').innerText = `${data.length} Records`;
 
             if (data.length > 0) {
                 data.forEach(item => {
-                    const isIncome = item.type === 'INCOME';
-                    const colorClass = isIncome ? 'text-green' : 'text-red';
-                    const sign = isIncome ? '+' : '-';
+                    const colorClass = item.isPositive ? 'text-success' : 'text-danger';
+                    const sign = item.isPositive ? '+' : '-';
+                    
+                    let badgeClass = 'bg-secondary-subtle text-secondary border-secondary-subtle'; // CASH
+                    if (item.badge === 'VAULT') badgeClass = 'bg-gold-subtle text-gold border-gold';
+                    else if (item.badge === 'UPI') badgeClass = 'bg-primary-subtle text-primary border-primary-subtle';
+                    else if (item.badge === 'SWEEP') badgeClass = 'bg-success-subtle text-success border-success-subtle';
 
                     tbody.innerHTML += `
-                        <tr>
-                            <td style="font-size: 0.9em;">${item.dateStr}</td>
-                            <td class="mobile-hide"><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 800; color: #475569; letter-spacing: 0.5px;">${item.sourceLabel}</span></td>
-                            <td style="font-weight: 600;">${item.ref}</td>
-                            <td><strong style="font-size: 0.9em;">${item.type}</strong></td>
-                            <td style="text-align: right;" class="${colorClass}">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                        <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
+                            <td class="ps-4 py-3">
+                                <div class="fw-bold text-dark small">${item.dateStr}</div>
+                                <div class="text-muted mobile-hide" style="font-size: 0.75rem;">${item.timeStr}</div>
+                            </td>
+                            <td class="text-center py-3">
+                                <span class="badge border ${badgeClass} px-2 py-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">${item.badge}</span>
+                            </td>
+                            <td class="py-3 fw-semibold text-dark mobile-hide" style="font-size: 0.9em;">${item.ref}</td>
+                            <td class="text-end pe-4 py-3 fw-bold ${colorClass} fs-6">${sign} ₹ ${item.amount.toFixed(2)}</td>
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No transactions found matching the selected filters.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No transactions found matching filters.</td></tr>`;
             }
         }
 
+        // --- MANUAL RESERVE VAULT ACTIONS ---
         async function openAddFundsModal() {
             const { value: formValues } = await Swal.fire({
-                title: 'Add Money to Reserve Vault',
+                title: 'Manual Deposit',
                 html: `
-                    <input id="swal-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
-                    <input id="swal-note" class="swal2-input" placeholder="Reference Note (e.g., Owner Capital Injection)">
+                    <input id="swal-amt" class="swal2-input form-control mb-3 fw-bold text-success" type="number" placeholder="Amount (₹) (Required)">
+                    <input id="swal-note" class="swal2-input form-control" placeholder="Reference Note (e.g., Owner Capital Injection)">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
-                confirmButtonText: 'Add Funds',
+                confirmButtonText: 'Deposit Funds',
                 confirmButtonColor: '#10b981',
                 preConfirm: () => {
                     const amount = parseFloat(document.getElementById('swal-amt').value);
-                    if (!amount || amount <= 0) {
-                        Swal.showValidationMessage('Enter a valid amount');
-                        return false;
-                    }
-                    return {
-                        amount: amount,
-                        note: document.getElementById('swal-note').value || 'Reserve Fund Deposit'
-                    };
+                    if (!amount || amount <= 0) { Swal.showValidationMessage('Enter a valid amount'); return false; }
+                    return { amount: amount, note: document.getElementById('swal-note').value || 'Manual Vault Deposit' };
                 }
             });
 
             if (formValues) {
                 const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-                let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
-                const newReserve = currentReserve + formValues.amount;
-
+                const newReserve = parseFloat(shopData?.master_ledger_balance || 0) + formValues.amount;
                 await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
-
-                await supabaseClient.from('master_ledger_logs').insert([{
-                    shop_id: currentShopId,
-                    transaction_type: 'DEPOSIT',
-                    reference_note: formValues.note,
-                    amount: formValues.amount
-                }]);
-
-                Swal.fire({ title: 'Success!', text: `Added ₹${formValues.amount} to Reserve.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                await supabaseClient.from('master_ledger_logs').insert([{ shop_id: currentShopId, transaction_type: 'DEPOSIT', reference_note: formValues.note, amount: formValues.amount }]);
+                Swal.fire({ title: 'Success!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await loadMasterLedgerData();
             }
         }
 
         async function openWithdrawModal() {
             const { value: formValues } = await Swal.fire({
-                title: 'Withdraw Money from Reserve',
+                title: 'Manual Withdrawal',
                 html: `
-                    <input id="swal-amt" class="swal2-input" type="number" placeholder="Amount (₹) (Required)">
-                    <input id="swal-note" class="swal2-input" placeholder="Reference Note (e.g., Owner Withdrawal)">
+                    <input id="swal-amt" class="swal2-input form-control mb-3 fw-bold text-danger" type="number" placeholder="Amount (₹) (Required)">
+                    <input id="swal-note" class="swal2-input form-control" placeholder="Reference Note (e.g., Owner Withdrawal)">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
-                confirmButtonText: 'Withdraw',
+                confirmButtonText: 'Withdraw Funds',
                 confirmButtonColor: '#ef4444',
                 preConfirm: () => {
                     const amount = parseFloat(document.getElementById('swal-amt').value);
-                    if (!amount || amount <= 0) {
-                        Swal.showValidationMessage('Enter a valid amount');
-                        return false;
-                    }
-                    return {
-                        amount: amount,
-                        note: document.getElementById('swal-note').value || 'Reserve Fund Withdrawal'
-                    };
+                    if (!amount || amount <= 0) { Swal.showValidationMessage('Enter a valid amount'); return false; }
+                    return { amount: amount, note: document.getElementById('swal-note').value || 'Manual Vault Withdrawal' };
                 }
             });
 
@@ -375,36 +323,21 @@
                 const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
 
-                if (formValues.amount > currentReserve) {
-                    return Swal.fire('Insufficient Funds', 'Not enough balance in the Reserve Vault.', 'error');
-                }
+                if (formValues.amount > currentReserve) return Swal.fire('Insufficient Funds', 'Not enough balance in Vault.', 'error');
 
                 const newReserve = currentReserve - formValues.amount;
-
                 await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
-
-                await supabaseClient.from('master_ledger_logs').insert([{
-                    shop_id: currentShopId,
-                    transaction_type: 'WITHDRAWAL',
-                    reference_note: formValues.note,
-                    amount: -formValues.amount
-                }]);
-
-                Swal.fire({ title: 'Success!', text: `Withdrew ₹${formValues.amount} from Reserve.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                await supabaseClient.from('master_ledger_logs').insert([{ shop_id: currentShopId, transaction_type: 'WITHDRAWAL', reference_note: formValues.note, amount: -formValues.amount }]);
+                Swal.fire({ title: 'Success!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await loadMasterLedgerData();
             }
         }
 
         function downloadLedgerPDF() {
+            document.querySelector('.no-print').classList.add('d-none');
             const element = document.getElementById('pdf-export-area');
-            const opt = {
-                margin:       10,
-                filename:     `Master_Ledger_Statement.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            html2pdf().from(element).set(opt).save();
+            const opt = { margin: 10, filename: `Master_Ledger_Statement.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            html2pdf().from(element).set(opt).save().then(() => document.querySelector('.no-print').classList.remove('d-none'));
         }
     </script>
 </body>
