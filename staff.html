@@ -4,74 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Management</title>
-    <!-- SYNCHRONOUS CDN LOADING - Fixes the undefined error -->
+    
+    <!-- BOOTSTRAP 5 & GOOGLE FONTS -->
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- SYNCHRONOUS SUPABASE CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <style>
-        /* MINIMALIST & MOBILE-OPTIMIZED BASE */
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: 'Public Sans', sans-serif; background-color: #FDFBF7; }
         
-        .hidden { display: none !important; }
-
-        /* PROFESSIONAL FULL-SCREEN LOADER */
-        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; background: #f9fafb; z-index: 9999; }
-        .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #auth-message { color: #64748b; font-weight: 600; font-size: 1.1em; letter-spacing: 0.5px; }
-
-        .main-content { flex-grow: 1; padding: 20px; display: flex; gap: 20px; height: calc(100vh - 60px); box-sizing: border-box; }
+        .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; border: 1px solid rgba(197, 160, 89, 0.15); }
+        .card-hover:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); }
         
-        /* DIRECTORY PANE */
-        .directory-pane { width: 300px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; flex-direction: column; flex-shrink: 0; }
-        .pane-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
-        .pane-header h3 { margin: 0; font-size: 1.1em; font-weight: 600; }
+        .text-gold { color: #C5A059; }
         
-        .staff-list { overflow-y: auto; flex-grow: 1; padding: 10px; }
-        .staff-item { padding: 12px 15px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; border: 1px solid transparent; font-weight: 500; font-size: 0.9em; transition: 0.2s; }
-        .staff-item:hover { background: #f3f4f6; }
-        .staff-item.active { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; font-weight: 600; }
-
-        /* DASHBOARD PANE */
-        .dashboard-pane { flex-grow: 1; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb; display: none; flex-direction: column; overflow: hidden; }
-        .dash-header { padding: 20px 25px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .staff-name { font-size: 1.5em; font-weight: 800; margin: 0; color: #0f172a; }
-        .staff-role { font-size: 0.75em; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+        .form-control, .form-select { background: #F8F9FA; border: 1px solid #EAE0D5; padding: 10px 15px; border-radius: 10px; font-weight: 500; transition: 0.2s; }
+        .form-control:focus, .form-select:focus { background: #FFF; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.15); border-color: #C5A059; outline: none; }
         
-        /* SPLIT VIEW */
-        .split-view { display: flex; flex-grow: 1; overflow: hidden; flex-direction: row; }
-        .calendar-section { flex: 1; padding: 25px; border-right: 1px solid #f3f4f6; overflow-y: auto; }
-        .history-section { flex: 1; padding: 25px; overflow-y: auto; background: #f8fafc; }
+        .staff-item { padding: 15px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: white; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); font-weight: 600; color: #2C2C2C; }
+        .staff-item:hover { border-color: #C5A059; transform: translateY(-2px); }
+        .staff-item.active { background: #2C2C2C; color: white !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         
-        h4 { margin-top: 0; font-size: 0.95em; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; display: flex; justify-content: space-between;}
+        .btn-custom { background-color: #2C2C2C; color: white; border: none; font-weight: 800; padding: 10px 20px; border-radius: 10px; transition: 0.2s; letter-spacing: 0.5px; }
+        .btn-custom:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: white; }
 
         /* CALENDAR GRID */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 15px; }
-        .cal-day-header { text-align: center; font-size: 0.75em; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
-        .cal-cell { aspect-ratio: 1; border-radius: 8px; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95em; cursor: pointer; user-select: none; transition: 0.15s; background: #ffffff; color: #94a3b8; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 15px; }
+        .cal-day-header { text-align: center; font-size: 0.75em; font-weight: 800; color: #888; text-transform: uppercase; }
+        .cal-cell { aspect-ratio: 1; border-radius: 10px; border: 2px solid #f1f5f9; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1em; cursor: pointer; user-select: none; transition: 0.15s; background: #ffffff; color: #94a3b8; }
         .cal-cell.empty { border: none; background: transparent; cursor: default; }
+        .cal-cell:not(.empty):hover { border-color: #C5A059; color: #C5A059; }
 
         /* STATES */
-        .state-FULL { background: #10b981; border-color: #10b981; color: white; }
-        .state-LEAVE { background: #ef4444; border-color: #ef4444; color: white; }
-        .state-HALF { background: #f59e0b; border-color: #f59e0b; color: white; }
+        .state-FULL { background: #10b981; border-color: #10b981; color: white !important; }
+        .state-LEAVE { background: #ef4444; border-color: #ef4444; color: white !important; }
+        .state-HALF { background: #f59e0b; border-color: #f59e0b; color: white !important; }
 
-        /* HISTORY TABLE */
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
-        .history-table th { text-align: left; padding: 12px 10px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.8em; }
-        .history-table td { padding: 15px 10px; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: 500; }
+        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 40px; flex-direction: column; }
 
-        button.btn { background: #0f172a; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
-        button.btn:hover { background: #334155; }
-        
         @media (max-width: 768px) {
-            body { overflow: auto; }
-            .main-content { flex-direction: column; height: auto; overflow: visible; padding: 15px; }
-            .directory-pane { width: 100%; height: 250px; flex-shrink: 0; }
-            .dashboard-pane { width: 100%; overflow: visible; }
-            .split-view { flex-direction: column; }
-            .calendar-section { border-right: none; border-bottom: 1px solid #f3f4f6; }
-            .cal-cell { font-size: 1.1em; border-radius: 6px; } 
+            .sticky-md-top { position: relative !important; z-index: 1; }
+            .cal-cell { font-size: 1.1em; border-radius: 8px; } 
         }
     </style>
 </head>
@@ -79,66 +56,94 @@
 
     <script src="navbar.js"></script>
 
-    <div id="unauthorized" class="loader-container">
-        <div class="spinner" id="loading-spinner"></div>
-        <div id="auth-message">Verifying Admin Credentials...</div>
-    </div>
-
-    <main class="main-content hidden" id="admin-content">
-        <div class="directory-pane">
-            <div class="pane-header">
-                <h3>Staff Team</h3>
-                <button class="btn" onclick="addNewStaff()">+ Add</button>
-            </div>
-            <div class="staff-list" id="staff-list">
-                <div style="padding: 20px; text-align: center; color: #9ca3af;">Loading staff...</div>
-            </div>
-        </div>
-
-        <div class="dashboard-pane" id="dashboard-pane">
-            <div class="dash-header">
-                <div>
-                    <div class="staff-role">Staff Member</div>
-                    <div class="staff-name" id="selected-staff-name">Loading...</div>
-                </div>
-                <button class="btn" onclick="logStaffPayment()">+ Log Payment</button>
-            </div>
+    <main class="container-fluid py-4 mb-5 d-none" id="admin-content">
+        
+        <div class="row g-4">
             
-            <div class="split-view">
-                <div class="calendar-section">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 15px;">
-                        <h4 style="border: none; padding: 0; margin: 0;">
-                            <span id="calendar-month-title">Current Month</span> 
-                        </h4>
-                        <button id="save-attendance-btn" class="btn" style="background: #10b981; display: none;" onclick="saveAttendance()">Save Changes</button>
+            <!-- LEFT: DIRECTORY -->
+            <div class="col-12 col-lg-4 col-xl-3">
+                <div class="sticky-md-top" style="top: 100px;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold m-0" style="color: #2C2C2C;">Staff Team</h4>
+                        <button class="btn btn-sm btn-custom px-3" onclick="addNewStaff()">+ NEW</button>
                     </div>
-                    <div style="font-size: 0.75em; color: #64748b; margin-bottom: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #f1f5f9;">
-                        <strong>Tap to toggle:</strong> <span style="color:#10b981; margin: 0 5px;">1. Full</span> | <span style="color:#ef4444; margin: 0 5px;">2. Leave</span> | <span style="color:#f59e0b; margin: 0 5px;">3. Half</span>
-                    </div>
-                    
-                    <div class="cal-grid" id="calendar-grid">
-                        <!-- JS Will Inject Actual Calendar Here -->
+
+                    <div id="staff-list" style="max-height: 70vh; overflow-y: auto; padding-right: 5px;">
+                        <div class="empty-state">Loading staff...</div>
                     </div>
                 </div>
+            </div>
+
+            <!-- RIGHT: DASHBOARD -->
+            <div class="col-12 col-lg-8 col-xl-9">
                 
-                <div class="history-section">
-                    <h4>Payment History</h4>
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Method</th>
-                                <th style="text-align: right;">Amount (₹)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="payment-history">
-                            <tr><td colspan="3" style="text-align:center; padding: 20px; color: #9ca3af;">Loading history...</td></tr>
-                        </tbody>
-                    </table>
+                <!-- DEFAULT EMPTY STATE -->
+                <div id="empty-pane" class="card card-hover bg-white border-0 shadow-sm h-100 d-flex justify-content-center align-items-center p-5">
+                    <div class="text-center opacity-50">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="mb-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <h5 class="fw-bold text-dark">No Staff Selected</h5>
+                        <p class="small text-muted">Select a team member to manage attendance and wages.</p>
+                    </div>
                 </div>
+
+                <!-- ACTIVE STAFF DASHBOARD -->
+                <div id="dashboard-pane" class="card card-hover bg-white border-0 shadow-sm d-none flex-column overflow-hidden h-100">
+                    
+                    <div class="p-4 p-md-5 border-bottom bg-light d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                        <div>
+                            <div class="small fw-bold text-muted text-uppercase mb-1 tracking-wide" style="letter-spacing: 1px;">Team Member</div>
+                            <h2 class="fw-bold m-0 text-dark" id="selected-staff-name">Name</h2>
+                        </div>
+                        <button class="btn btn-custom" onclick="logStaffPayment()">+ RECORD WAGE</button>
+                    </div>
+
+                    <div class="row g-0 flex-grow-1">
+                        <!-- CALENDAR SECTION -->
+                        <div class="col-12 col-xl-7 border-end p-4">
+                            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                <h5 class="fw-bold m-0" style="color: #2C2C2C;" id="calendar-month-title">Current Month</h5>
+                                <button id="save-attendance-btn" class="btn btn-sm btn-success fw-bold px-3 d-none" onclick="saveAttendance()">SAVE CHANGES</button>
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-3 small fw-bold text-muted mb-3 bg-light p-2 rounded-3">
+                                <span class="d-flex align-items-center"><span class="d-inline-block rounded-circle bg-success me-2" style="width:10px; height:10px;"></span>Full</span>
+                                <span class="d-flex align-items-center"><span class="d-inline-block rounded-circle bg-danger me-2" style="width:10px; height:10px;"></span>Leave</span>
+                                <span class="d-flex align-items-center"><span class="d-inline-block rounded-circle bg-warning me-2" style="width:10px; height:10px;"></span>Half</span>
+                            </div>
+                            
+                            <div class="cal-grid" id="calendar-grid">
+                                <!-- JS Will Inject Actual Calendar Here -->
+                            </div>
+                        </div>
+
+                        <!-- HISTORY SECTION -->
+                        <div class="col-12 col-xl-5 p-4 bg-light">
+                            <h5 class="fw-bold mb-3 border-bottom pb-3" style="color: #2C2C2C;">Payment History</h5>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0 table-hover">
+                                    <thead>
+                                        <tr class="small text-muted fw-bold text-uppercase" style="letter-spacing: 0.5px;">
+                                            <th class="py-2 border-0">Date</th>
+                                            <th class="text-center py-2 border-0">Mode</th>
+                                            <th class="text-end py-2 border-0">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="payment-history">
+                                        <tr><td colspan="3" class="text-center py-4 text-muted fw-semibold">Loading history...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
         let currentShopId = null;
@@ -149,56 +154,37 @@
 
         const STATES = ['NONE', 'FULL', 'LEAVE', 'HALF'];
 
-        // NO MORE TIMEOUT DELAYS: Executes instantly
         window.onload = async () => {
             try {
                 const { data: userData, error: authError } = await supabaseClient.auth.getUser();
                 
                 if (authError || !userData || !userData.user) {
-                    failAuth("ACCESS DENIED: Not logged in.");
+                    window.location.replace('index.html');
                     return;
                 }
 
-                const { data: profile, error: profileError } = await supabaseClient
-                    .from('user_profiles')
-                    .select('role, shop_id')
-                    .eq('id', userData.user.id)
-                    .single();
-
-                if (profileError) {
-                    failAuth("Database Error: " + profileError.message);
-                    return;
-                }
+                const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
 
                 if (profile && profile.role === 'admin') {
                     currentShopId = profile.shop_id;
-                    document.getElementById('unauthorized').classList.add('hidden');
-                    document.getElementById('admin-content').classList.remove('hidden');
-                    
+                    document.getElementById('admin-content').classList.remove('d-none');
                     await loadStaffList();
                 } else {
-                    failAuth("ACCESS DENIED: Admin Privileges Required.");
+                    window.location.replace('dashboard.html');
                 }
             } catch (err) {
-                failAuth("System Error: " + err.message);
+                console.error(err);
             }
         };
 
-        function failAuth(msg) {
-            document.getElementById('loading-spinner').style.display = 'none';
-            const msgEl = document.getElementById('auth-message');
-            msgEl.innerText = msg;
-            msgEl.style.color = '#ef4444';
-        }
-
         async function addNewStaff() {
             const { value: formValues } = await Swal.fire({
-                title: 'Add New Staff Member',
-                html: '<input id="swal-staff-name" class="swal2-input" placeholder="Staff Name (e.g. Rahul)">',
+                title: 'Add New Staff',
+                html: '<input id="swal-staff-name" class="swal2-input form-control" placeholder="Staff Name (e.g. Rahul)">',
                 focusConfirm: false,
                 showCancelButton: true,
                 confirmButtonText: 'Save Staff',
-                confirmButtonColor: '#0f172a',
+                confirmButtonColor: '#2C2C2C',
                 preConfirm: () => {
                     const name = document.getElementById('swal-staff-name').value;
                     if (!name) Swal.showValidationMessage('Please enter a name');
@@ -213,9 +199,9 @@
                 }]);
 
                 if (error) {
-                    Swal.fire('Error', 'Could not add staff: ' + error.message, 'error');
+                    Swal.fire('Error', error.message, 'error');
                 } else {
-                    Swal.fire({ title: 'Success!', text: `${formValues.name} has been added to your team.`, icon: 'success', timer: 1500, showConfirmButton: false });
+                    Swal.fire({ title: 'Success!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                     await loadStaffList();
                 }
             }
@@ -232,7 +218,7 @@
             list.innerHTML = '';
 
             if (error) {
-                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #ef4444;">Error loading staff: ${error.message}</div>`;
+                list.innerHTML = `<div class="empty-state text-danger">Error: ${error.message}</div>`;
                 return;
             }
 
@@ -242,7 +228,7 @@
                     list.innerHTML += `<div class="staff-item ${activeClass}" onclick="openStaff('${s.id}', '${s.name}', this)">${s.name}</div>`;
                 });
             } else {
-                list.innerHTML = `<div style="padding: 20px; text-align: center; color: #94a3b8;">No staff found. Click + Add to start.</div>`;
+                list.innerHTML = `<div class="empty-state">No staff found.<br>Click + NEW to start.</div>`;
             }
         }
 
@@ -251,7 +237,8 @@
             document.querySelectorAll('.staff-item').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
             
-            document.getElementById('dashboard-pane').style.display = 'flex';
+            document.getElementById('empty-pane').classList.add('d-none');
+            document.getElementById('dashboard-pane').classList.remove('d-none');
             document.getElementById('selected-staff-name').innerText = name;
 
             await generateCalendar();
@@ -261,7 +248,7 @@
         async function generateCalendar() {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
-            document.getElementById('save-attendance-btn').style.display = 'none'; 
+            document.getElementById('save-attendance-btn').classList.add('d-none'); 
             
             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             document.getElementById('calendar-month-title').innerText = `${monthNames[currentMonth]} ${currentYear}`;
@@ -278,9 +265,7 @@
                 .gte('record_date', startDate)
                 .lte('record_date', endDate);
             
-            if (error) {
-                Swal.fire('Error', 'Failed to load attendance records.', 'error');
-            }
+            if (error) Swal.fire('Error', 'Failed to load attendance.', 'error');
 
             originalAttendanceMap = {}; 
             if (records) {
@@ -317,19 +302,15 @@
             element.classList.remove('state-FULL', 'state-LEAVE', 'state-HALF');
             if (stateName !== 'NONE') element.classList.add(`state-${stateName}`);
             
-            // THE FIX: Completely reset and unlock the button every time a change is made
             const btn = document.getElementById('save-attendance-btn');
-            btn.style.display = 'block';
-            btn.innerText = 'Save Changes';
+            btn.classList.remove('d-none');
+            btn.innerText = 'SAVE CHANGES';
             btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.background = '#10b981';
         }
 
         async function saveAttendance() {
             const btn = document.getElementById('save-attendance-btn');
-            btn.innerText = "Saving...";
-            btn.style.opacity = "0.7";
+            btn.innerText = "SAVING...";
             btn.disabled = true;
 
             const upserts = [];
@@ -356,30 +337,24 @@
             });
 
             if (upserts.length > 0) {
-                const { error } = await supabaseClient.from('staff_attendance').upsert(upserts, { onConflict: 'staff_id,record_date' });
-                if (error) return Swal.fire('Error', 'Failed to save attendance: ' + error.message, 'error');
+                await supabaseClient.from('staff_attendance').upsert(upserts, { onConflict: 'staff_id,record_date' });
             }
 
             if (deletes.length > 0) {
-                const { error } = await supabaseClient.from('staff_attendance')
-                    .delete()
-                    .eq('staff_id', activeStaffId)
-                    .in('record_date', deletes);
-                if (error) return Swal.fire('Error', 'Failed to clear attendance: ' + error.message, 'error');
+                await supabaseClient.from('staff_attendance').delete().eq('staff_id', activeStaffId).in('record_date', deletes);
             }
 
-            btn.innerText = "Saved!";
-            btn.style.background = "#059669";
+            btn.innerText = "SAVED!";
             setTimeout(() => { generateCalendar(); }, 800);
         }
 
         async function loadPaymentHistory() {
-            const { data: txns, error } = await supabaseClient.from('daily_transactions')
+            const { data: txns } = await supabaseClient.from('daily_transactions')
                 .select('created_at, amount, payment_method')
                 .eq('staff_id', activeStaffId)
                 .eq('transaction_type', 'EXPENSE')
                 .order('created_at', { ascending: false })
-                .limit(10);
+                .limit(15);
 
             const tbody = document.getElementById('payment-history');
             tbody.innerHTML = '';
@@ -387,65 +362,64 @@
             if (txns && txns.length > 0) {
                 txns.forEach(txn => {
                     const date = new Date(txn.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const badgeClass = txn.payment_method === 'UPI' ? 'bg-primary-subtle text-primary border-primary-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle';
+                    
                     tbody.innerHTML += `
-                        <tr>
-                            <td>${date}</td>
-                            <td style="font-size: 0.85em; color: #64748b; font-weight: 600;">${txn.payment_method}</td>
-                            <td style="text-align: right; font-weight: 700; color: #0f172a;">₹ ${parseFloat(txn.amount).toFixed(2)}</td>
+                        <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FFF'" onmouseout="this.style.background='transparent'">
+                            <td class="fw-bold small text-muted">${date}</td>
+                            <td class="text-center">
+                                <span class="badge border ${badgeClass} px-2 py-1" style="font-size: 0.65rem;">${txn.payment_method}</span>
+                            </td>
+                            <td class="text-end fw-bold text-danger fs-6">- ₹ ${parseFloat(txn.amount).toFixed(2)}</td>
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 20px; color: #9ca3af;">No payments logged yet.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-muted fw-semibold">No payments logged yet.</td></tr>`;
             }
         }
 
         async function logStaffPayment() {
-            const { value: amountStr } = await Swal.fire({
-                title: 'Record Staff Payment',
-                input: 'number',
-                inputLabel: 'Amount (₹)',
-                inputPlaceholder: 'e.g. 5000',
+            const { value: payData } = await Swal.fire({
+                title: 'Record Staff Wage',
+                html: `
+                    <input id="swal-pay-amt" class="swal2-input form-control mb-3 fw-bold text-danger" type="number" placeholder="Amount (₹) (Required)">
+                    <select id="swal-pay-source" class="swal2-input form-select">
+                        <option value="CASH">Cash (From Drawer)</option>
+                        <option value="UPI">Digital / UPI</option>
+                    </select>
+                `,
+                focusConfirm: false,
                 showCancelButton: true,
-                confirmButtonText: 'Next',
-                confirmButtonColor: '#0f172a'
+                confirmButtonText: 'Confirm Payment',
+                confirmButtonColor: '#2C2C2C',
+                preConfirm: () => {
+                    const amount = parseFloat(document.getElementById('swal-pay-amt').value);
+                    if (!amount || amount <= 0) { Swal.showValidationMessage('Enter a valid payment amount'); return false; }
+                    return {
+                        amount: amount,
+                        source: document.getElementById('swal-pay-source').value
+                    };
+                }
             });
 
-            if (!amountStr) return;
-            const amount = parseFloat(amountStr);
-            if (isNaN(amount) || amount <= 0) {
-                return Swal.fire('Invalid Amount', 'Please enter a valid number greater than 0.', 'error');
+            if (payData) {
+                const { error } = await supabaseClient.from('daily_transactions').insert([{
+                    shop_id: currentShopId,
+                    staff_id: activeStaffId,
+                    transaction_type: 'EXPENSE',
+                    category: 'staff',
+                    payment_method: payData.source,
+                    amount: payData.amount,
+                    reference_note: 'Staff Payout',
+                    status: 'open' 
+                }]);
+
+                if (error) return Swal.fire('Error', error.message, 'error');
+                
+                Swal.fire({ title: 'Logged!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                await loadPaymentHistory(); 
             }
-
-            const confirmResult = await Swal.fire({
-                title: 'Confirm Payment',
-                text: `Record a cash payment of ₹${amount} to this staff member?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#ef4444',
-                confirmButtonText: 'Yes, log payment'
-            });
-
-            if (!confirmResult.isConfirmed) return;
-
-            const { error } = await supabaseClient.from('daily_transactions').insert([{
-                shop_id: currentShopId,
-                staff_id: activeStaffId,
-                transaction_type: 'EXPENSE',
-                category: 'staff',
-                payment_method: 'CASH',
-                amount: amount,
-                reference_note: 'Staff Payout',
-                status: 'open' 
-            }]);
-
-            if (error) {
-                return Swal.fire('Error', 'Failed to save payment: ' + error.message, 'error');
-            }
-            
-            Swal.fire({ title: 'Success!', text: 'Payment logged to today\'s drawer.', icon: 'success', timer: 1500, showConfirmButton: false });
-            await loadPaymentHistory(); 
         }
     </script>
 </body>
