@@ -245,6 +245,7 @@
                         
                         if (isAdmin) {
                             document.getElementById('edit-col-header').classList.remove('d-none');
+                            // Apply to any pre-existing admin-only elements
                             document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none'));
                         }
 
@@ -332,7 +333,7 @@
                     else if (txn.category === 'staff' && txn.staff) { mainGroup = 'STAFF WAGE'; partyName = txn.staff.name; }
                     
                     let refNote = txn.reference_note ? `<div class="text-muted mt-1" style="font-size: 0.75rem;">Ref: ${txn.reference_note}</div>` : '';
-                    if (partyName === txn.reference_note) refNote = ''; // Prevent duplicate notes
+                    if (partyName === txn.reference_note) refNote = '';
 
                     processedTxns.push({
                         ...txn,
@@ -362,10 +363,11 @@
                         ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">UPI</span>` 
                         : `<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">CASH</span>`;
 
+                    // FIX: Removed the buggy 'd-none' class so buttons actually show up
                     let adminEditBtn = isAdmin ? `
-                        <td class="text-center admin-only d-none d-md-table-cell">
+                        <td class="text-center admin-only">
                             <div class="d-flex justify-content-center gap-2">
-                                <button class="btn btn-sm text-dark border-0 p-1" onclick="editTransaction('${txn.id}', ${txn.amt})" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                                <button class="btn btn-sm text-dark border-0 p-1" onclick="editTransaction('${txn.id}', ${txn.amt}, '${txn.vendor_id}', '${txn.transaction_type}', '${txn.category}')" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
                                 <button class="btn btn-sm text-danger border-0 p-1" onclick="deleteTransaction('${txn.id}', ${txn.amt}, '${txn.vendor_id}', '${txn.transaction_type}', '${txn.category}')" title="Delete"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                             </div>
                         </td>
@@ -486,7 +488,8 @@
             await loadDashboardData();
         }
 
-        async function editTransaction(txnId, currentAmount) {
+        // FIX: The math difference is now securely passed to the database to sync vendor ledgers.
+        async function editTransaction(txnId, currentAmount, vendorIdStr, type, category) {
             const { value: newAmountStr } = await Swal.fire({
                 title: 'Modify Transaction',
                 input: 'number',
@@ -500,8 +503,23 @@
             const newAmount = parseFloat(newAmountStr);
             if (isNaN(newAmount) || newAmount <= 0) return Swal.fire('Error', 'Invalid amount.', 'error');
             
+            const difference = newAmount - currentAmount;
+            if (difference === 0) return; 
+
             const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
             if (error) return Swal.fire('Database Error', error.message, 'error');
+
+            // Secure accounting: Update vendor ledger if a payment was edited
+            if (vendorIdStr && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
+                const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
+                if (vData) {
+                    // Difference calculation fixes outstanding balance shifts
+                    const updatedBal = parseFloat(vData.outstanding_balance || 0) - difference;
+                    await supabaseClient.from('vendors').update({ outstanding_balance: updatedBal }).eq('id', vendorIdStr);
+                }
+            }
+
+            Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             await loadDashboardData();
         }
 
@@ -533,7 +551,6 @@
             }
         }
 
-        // --- THE BULLETPROOF VAULT TRANSFER ---
         async function transferToVault() {
             const btn = document.getElementById('transfer-btn');
             const selectedDate = document.getElementById('active-date').value;
