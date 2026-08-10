@@ -31,7 +31,7 @@ async function loadPremiumLayout() {
             const bs = document.createElement('link'); bs.id = 'bs-css'; bs.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'; bs.rel = 'stylesheet'; document.head.appendChild(bs);
         }
 
-        // 4. APPLY PREMIUM BEAUTY SPORTS CSS & HAMBURGER LOGIC
+        // 4. APPLY PREMIUM BEAUTY SPORTS CSS & UNIVERSAL HAMBURGER LOGIC
         const style = document.createElement('style');
         style.innerHTML = `
             :root { 
@@ -55,8 +55,8 @@ async function loadPremiumLayout() {
             ::-webkit-scrollbar-thumb { background: #EAE0D5; border-radius: 10px; }
             ::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
             
-            /* Desktop Sidebar */
-            .sidebar { height: 100vh; width: 260px; position: fixed; top:0; left:0; background: var(--sidebar-dark); color: white; z-index: 1001; border-right: 1px solid rgba(255,255,255,0.05); box-shadow: 4px 0 20px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            /* Desktop Sidebar Default */
+            .sidebar { height: 100vh; width: 260px; position: fixed; top:0; left:0; background: var(--sidebar-dark); color: white; z-index: 1001; border-right: 1px solid rgba(255,255,255,0.05); box-shadow: 4px 0 20px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(0); }
             .sidebar-brand { padding: 2rem 1.5rem; font-weight: 800; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 1.15rem; display: flex; align-items: center; gap: 10px; text-transform: uppercase; }
             
             .sidebar-nav-link { color: rgba(255, 255, 255, 0.6); padding: 1rem 1.5rem; transition: all 0.3s ease; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; border-left: 4px solid transparent; display: flex; align-items: center; gap: 12px; text-decoration: none; }
@@ -66,27 +66,30 @@ async function loadPremiumLayout() {
             .sidebar-nav-link.active { color: white; background: var(--sidebar-hover); border-left: 4px solid var(--accent-gold); }
             .sidebar-nav-link.active svg { opacity: 1; color: var(--accent-gold); }
 
-            /* Status Bar & Main Content */
-            .status-bar { margin-left: 260px; padding: 1.25rem 2.5rem; background: var(--glass); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(197, 160, 89, 0.2); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 999; transition: margin-left 0.3s ease; }
-            .main-content-wrapper { margin-left: 260px; padding: 2.5rem; transition: margin-left 0.3s ease; }
+            /* Status Bar & Main Content Default */
+            .status-bar { margin-left: 260px; padding: 1.25rem 2.5rem; background: var(--glass); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(197, 160, 89, 0.2); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 999; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            .main-content-wrapper { margin-left: 260px; padding: 2.5rem; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
             .btn-outline-danger { border-color: #dc3545; color: #dc3545; }
             .btn-outline-danger:hover { background-color: #dc3545; color: white; }
 
-            /* Hamburger Menu Elements */
-            .mobile-toggle-btn { display: none; background: transparent; border: none; color: #2C2C2C; padding: 5px; cursor: pointer; border-radius: 6px; }
+            /* Universal Hamburger Button & Overlay */
+            .mobile-toggle-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; color: #2C2C2C; padding: 5px; cursor: pointer; border-radius: 6px; transition: 0.2s; }
             .mobile-toggle-btn:hover { background: rgba(0,0,0,0.05); }
             .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s; }
             .sidebar-overlay.active { opacity: 1; visibility: visible; }
 
-            /* MOBILE LAYOUT */
+            /* DESKTOP COLLAPSED STATE */
+            body.sidebar-collapsed .sidebar { transform: translateX(-100%); }
+            body.sidebar-collapsed .status-bar, body.sidebar-collapsed .main-content-wrapper { margin-left: 0; }
+
+            /* MOBILE LAYOUT OVERRIDES */
             @media (max-width: 768px) {
                 .sidebar { transform: translateX(-100%); }
-                .sidebar.mobile-open { transform: translateX(0); }
+                body.sidebar-mobile-open .sidebar { transform: translateX(0); }
                 .status-bar, .main-content-wrapper { margin-left: 0; }
                 .status-bar { padding: 1rem; }
                 .main-content-wrapper { padding: 1.5rem 1rem; }
-                .mobile-toggle-btn { display: inline-flex; align-items: center; justify-content: center; }
             }
         `;
         document.head.appendChild(style);
@@ -172,21 +175,29 @@ async function loadPremiumLayout() {
             sidebar.insertAdjacentElement('afterend', statusBar);
         }
 
-        // 8. EVENT LISTENERS
+        // 8. DUAL-STATE EVENT LISTENERS
         document.getElementById('mobile-menu-btn').addEventListener('click', () => {
-            sidebar.classList.add('mobile-open');
-            overlay.classList.add('active');
+            if (window.innerWidth > 768) {
+                // Desktop toggle
+                document.body.classList.toggle('sidebar-collapsed');
+            } else {
+                // Mobile overlay toggle
+                document.body.classList.add('sidebar-mobile-open');
+                overlay.classList.add('active');
+            }
         });
 
         overlay.addEventListener('click', () => {
-            sidebar.classList.remove('mobile-open');
+            document.body.classList.remove('sidebar-mobile-open');
             overlay.classList.remove('active');
         });
 
         sidebar.querySelectorAll('.sidebar-nav-link').forEach(link => {
             link.addEventListener('click', () => {
-                sidebar.classList.remove('mobile-open');
-                overlay.classList.remove('active');
+                if (window.innerWidth <= 768) {
+                    document.body.classList.remove('sidebar-mobile-open');
+                    overlay.classList.remove('active');
+                }
             });
         });
 
