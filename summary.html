@@ -21,6 +21,9 @@
         .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(197, 160, 89, 0.08); }
         .text-gold { color: #C5A059; }
         
+        .form-control { background: #F8F9FA; border: 1px solid #EAE0D5; padding: 10px 15px; border-radius: 10px; font-weight: 700; transition: 0.2s; }
+        .form-control:focus { background: #FFF; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.15); border-color: #C5A059; outline: none; }
+
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
         .day-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding-bottom: 5px; color: #888; }
@@ -34,7 +37,7 @@
         .calendar-day.empty-slot:hover { transform: none; box-shadow: none; border-color: transparent; }
         .activity-dot { position: absolute; bottom: 6px; width: 6px; height: 6px; background-color: #C5A059; border-radius: 50%; }
 
-        .loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 10; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-weight: bold; color: #888; transition: 0.3s; }
+        .loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 10; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-weight: 800; color: #C5A059; transition: 0.3s; backdrop-filter: blur(2px); }
         .d-none { display: none !important; }
     </style>
 </head>
@@ -44,14 +47,18 @@
 
     <main class="container-fluid py-4 mb-5 position-relative d-none" id="admin-content" style="z-index: 10;">
         
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom">
-            <div>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4 pb-3 border-bottom">
+            <div class="mb-3 mb-md-0">
                 <h3 class="fw-bold m-0 text-dark">Business Analytics</h3>
-                <p class="text-muted small mb-0 mt-1">Visual insights and monthly performance</p>
+                <p class="text-muted small mb-0 mt-1">Visual insights and unified performance metrics</p>
             </div>
-            <span class="bg-white border shadow-sm px-4 py-2 rounded-pill fw-bold text-muted small mt-3 mt-md-0 d-inline-block">
-                DATE: <span id="today-date-display"></span>
-            </span>
+            
+            <div class="d-flex align-items-center gap-3">
+                <div style="min-width: 180px;">
+                    <span class="small fw-bold text-muted text-uppercase mb-1 d-block" style="font-size: 0.7rem; letter-spacing: 1px;">Analysis Period</span>
+                    <input type="month" id="global-month-filter" class="form-control text-dark shadow-sm border-0 cursor-pointer" onchange="updateGlobalFilter()">
+                </div>
+            </div>
         </div>
 
         <!-- TOP CHARTS -->
@@ -59,7 +66,9 @@
             <div class="col-lg-8">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100 position-relative">
                     <div class="loader-overlay" id="loader-trend">Crunching Data...</div>
-                    <h6 class="fw-bold text-dark mb-4 text-uppercase tracking-wide" style="letter-spacing: 1px;">30-Day Cashflow Trend</h6>
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <h6 class="fw-bold text-dark text-uppercase tracking-wide m-0" style="letter-spacing: 1px;">Monthly Cashflow Trend</h6>
+                    </div>
                     <div style="position: relative; height: 250px; width: 100%;">
                         <canvas id="cashflowChart"></canvas>
                     </div>
@@ -69,7 +78,7 @@
             <div class="col-lg-4">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100 position-relative">
                     <div class="loader-overlay" id="loader-expense">Crunching Data...</div>
-                    <h6 class="fw-bold text-dark mb-4 text-uppercase tracking-wide" style="letter-spacing: 1px;">Month-to-Date Expenses</h6>
+                    <h6 class="fw-bold text-dark mb-4 text-uppercase tracking-wide" style="letter-spacing: 1px;">Expense Distribution</h6>
                     <div style="position: relative; height: 250px; width: 100%; display: flex; justify-content: center;">
                         <canvas id="expenseChart"></canvas>
                     </div>
@@ -80,11 +89,12 @@
         <!-- BOTTOM METRICS & CALENDAR -->
         <div class="row g-4 mb-5">
             <div class="col-lg-5">
-                <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100">
+                <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100 position-relative">
+                    <div class="loader-overlay" id="loader-calendar">Syncing...</div>
                     <div class="calendar-header">
-                        <button class="btn btn-sm btn-light border fw-bold px-3" onclick="changeMonth(-1)">Prev</button>
+                        <button class="btn btn-sm btn-light border fw-bold px-3" onclick="changeGlobalMonth(-1)">Prev</button>
                         <h6 class="fw-bold m-0 text-gold text-uppercase tracking-wide" id="monthYearDisplay"></h6>
-                        <button class="btn btn-sm btn-light border fw-bold px-3" onclick="changeMonth(1)">Next</button>
+                        <button class="btn btn-sm btn-light border fw-bold px-3" onclick="changeGlobalMonth(1)">Next</button>
                     </div>
                     <div class="calendar-grid">
                         <div class="day-label">Sun</div><div class="day-label">Mon</div><div class="day-label">Tue</div>
@@ -97,9 +107,9 @@
             <div class="col-lg-7">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100 d-flex flex-column position-relative">
                     <div class="loader-overlay" id="loader-metrics">Calculating Metrics...</div>
-                    <h6 class="fw-bold text-dark mb-3 text-uppercase tracking-wide" style="letter-spacing: 1px;">Month-to-Date Performance</h6>
+                    <h6 class="fw-bold text-dark mb-3 text-uppercase tracking-wide" style="letter-spacing: 1px;">Period Performance</h6>
                     
-                    <div class="row text-center mb-4 bg-light rounded-3 p-3 mx-0">
+                    <div class="row text-center mb-4 bg-light rounded-3 p-3 mx-0 border" style="border-color: rgba(197, 160, 89, 0.2) !important;">
                         <div class="col-4 border-end">
                             <div class="small fw-bold text-muted mb-1 text-uppercase">Total Income</div>
                             <h5 class="fw-bold text-success m-0">₹ <span id="mtd-income">0.00</span></h5>
@@ -109,18 +119,18 @@
                             <h5 class="fw-bold text-danger m-0">₹ <span id="mtd-expense">0.00</span></h5>
                         </div>
                         <div class="col-4">
-                            <div class="small fw-bold text-muted mb-1 text-uppercase">Net Flow</div>
+                            <div class="small fw-bold text-muted mb-1 text-uppercase">Net Profit</div>
                             <h5 class="fw-bold m-0" id="mtd-profit">₹ 0.00</h5>
                         </div>
                     </div>
                     
                     <div class="row g-4 flex-grow-1">
                         <div class="col-6 border-end">
-                            <h6 class="small fw-bold text-muted mb-3 text-uppercase">Top Income Streams</h6>
+                            <h6 class="small fw-bold text-muted mb-3 text-uppercase border-bottom pb-2">Top Income Streams</h6>
                             <div id="top-income-list"></div>
                         </div>
                         <div class="col-6">
-                            <h6 class="small fw-bold text-muted mb-3 text-uppercase">Top Cost Centers</h6>
+                            <h6 class="small fw-bold text-muted mb-3 text-uppercase border-bottom pb-2">Top Cost Centers</h6>
                             <div id="top-expense-list"></div>
                         </div>
                     </div>
@@ -171,13 +181,16 @@
         let cashflowChartInst = null;
         let expenseChartInst = null;
 
-        // Calendar State
-        let currDate = new Date();
+        // Global Time State
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth(); // 0-11
         let globalActivityDates = [];
 
         window.onload = async () => {
-            document.getElementById('today-date-display').innerText = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            
+            // Set Default Input Value
+            const monthStr = String(currentMonth + 1).padStart(2, '0');
+            document.getElementById('global-month-filter').value = `${currentYear}-${monthStr}`;
+
             try {
                 const { data: userData } = await supabaseClient.auth.getUser();
                 if (userData && userData.user) {
@@ -199,30 +212,49 @@
             }
         };
 
-        async function fetchAnalyticsData() {
-            const today = new Date();
-            
-            // 30 Days Ago Threshold
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(today.getDate() - 30);
-            const thirtyStr = thirtyDaysAgo.toISOString();
+        async function updateGlobalFilter() {
+            const val = document.getElementById('global-month-filter').value;
+            if (!val) return;
+            const parts = val.split('-');
+            currentYear = parseInt(parts[0]);
+            currentMonth = parseInt(parts[1]) - 1;
+            await fetchAnalyticsData();
+        }
 
-            // 1st of Current Month Threshold
-            const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            const fomStr = firstOfMonth.toISOString();
+        async function changeGlobalMonth(step) {
+            currentMonth += step;
+            if (currentMonth > 11) { currentMonth = 0; currentYear += 1; }
+            if (currentMonth < 0) { currentMonth = 11; currentYear -= 1; }
+            
+            const monthStr = String(currentMonth + 1).padStart(2, '0');
+            document.getElementById('global-month-filter').value = `${currentYear}-${monthStr}`;
+            await fetchAnalyticsData();
+        }
+
+        async function fetchAnalyticsData() {
+            document.getElementById('loader-trend').classList.remove('d-none');
+            document.getElementById('loader-expense').classList.remove('d-none');
+            document.getElementById('loader-metrics').classList.remove('d-none');
+            document.getElementById('loader-calendar').classList.remove('d-none');
+
+            // Exact bounds for the selected month
+            const start = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01T00:00:00.000Z`;
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const end = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}T23:59:59.999Z`;
 
             const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select('*')
                 .eq('shop_id', currentShopId)
-                .gte('created_at', thirtyStr)
+                .gte('created_at', start)
+                .lte('created_at', end)
                 .order('created_at', { ascending: true });
 
-            if (error) return console.error(error);
+            if (error) { console.error(error); return; }
 
-            processTrendData(txns, thirtyDaysAgo);
-            processMTDData(txns, firstOfMonth);
+            processTrendData(txns, currentYear, currentMonth, daysInMonth);
+            processMTDData(txns);
             extractActivityDates(txns);
-            renderCalendar();
+            renderCalendar(daysInMonth);
         }
 
         function extractActivityDates(txns) {
@@ -234,19 +266,17 @@
             globalActivityDates = Array.from(dates);
         }
 
-        function processTrendData(txns, thirtyDaysAgo) {
+        function processTrendData(txns, year, month, daysInMonth) {
             const datesMap = {};
-            // Pre-fill last 30 days with 0
-            for(let i=0; i<30; i++) {
-                let d = new Date(thirtyDaysAgo);
-                d.setDate(d.getDate() + i);
-                let dStr = d.toISOString().split('T')[0];
+            // Pre-fill the exact selected month with 0s
+            for(let i = 1; i <= daysInMonth; i++) {
+                let dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 datesMap[dStr] = { in: 0, out: 0 };
             }
 
             txns.forEach(t => {
                 const dStr = t.created_at.split('T')[0];
-                if (!datesMap[dStr]) datesMap[dStr] = { in: 0, out: 0 };
+                if (!datesMap[dStr]) return; // Failsafe
                 
                 const isSweep = t.reference_note && t.reference_note.includes('Transferred to Master Vault');
                 if (t.transaction_type === 'INCOME') datesMap[dStr].in += parseFloat(t.amount);
@@ -257,7 +287,7 @@
             const incomeData = labels.map(l => datesMap[l].in);
             const expenseData = labels.map(l => datesMap[l].out);
             const displayLabels = labels.map(l => {
-                const p = l.split('-'); return `${p[2]}/${p[1]}`;
+                const p = l.split('-'); return `${p[2]}`; // Just show the day number
             });
 
             document.getElementById('loader-trend').classList.add('d-none');
@@ -272,23 +302,22 @@
                         { label: 'Expense', data: expenseData, borderColor: '#DC3545', backgroundColor: 'rgba(220,53,69,0.1)', fill: true, tension: 0.4 }
                     ]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+                options: { 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { position: 'top' } },
+                    scales: { x: { grid: { display: false } } }
+                }
             });
         }
 
-        function processMTDData(txns, firstOfMonth) {
+        function processMTDData(txns) {
             let mtdIncome = 0;
             let mtdExpense = 0;
             
             let incomeCats = {};
             let expenseCats = {};
 
-            const fomTime = firstOfMonth.getTime();
-
             txns.forEach(t => {
-                const tTime = new Date(t.created_at).getTime();
-                if(tTime < fomTime) return; // Skip if older than this month
-
                 const amt = parseFloat(t.amount);
                 const isSweep = t.reference_note && t.reference_note.includes('Transferred to Master Vault');
                 const cat = (t.category || 'Other').toUpperCase();
@@ -302,7 +331,6 @@
                 }
             });
 
-            // Update Metric Cards
             document.getElementById('mtd-income').innerText = mtdIncome.toLocaleString('en-IN', {minimumFractionDigits: 2});
             document.getElementById('mtd-expense').innerText = mtdExpense.toLocaleString('en-IN', {minimumFractionDigits: 2});
             
@@ -317,7 +345,7 @@
             sortedInc.forEach(i => {
                 incHtml += `<div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-bold text-dark">${i.name}</span><span class="small fw-bold text-success">₹ ${i.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>`;
             });
-            document.getElementById('top-income-list').innerHTML = incHtml || '<span class="text-muted small">No income data yet.</span>';
+            document.getElementById('top-income-list').innerHTML = incHtml || '<span class="text-muted small">No data for period.</span>';
 
             // Top 5 Expense
             const sortedExp = Object.keys(expenseCats).map(k => ({name: k, total: expenseCats[k]})).sort((a,b) => b.total - a.total).slice(0,5);
@@ -325,7 +353,7 @@
             sortedExp.forEach(e => {
                 expHtml += `<div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-bold text-dark">${e.name}</span><span class="small fw-bold text-danger">₹ ${e.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>`;
             });
-            document.getElementById('top-expense-list').innerHTML = expHtml || '<span class="text-muted small">No expense data yet.</span>';
+            document.getElementById('top-expense-list').innerHTML = expHtml || '<span class="text-muted small">No data for period.</span>';
 
             document.getElementById('loader-metrics').classList.add('d-none');
             document.getElementById('loader-expense').classList.add('d-none');
@@ -343,30 +371,27 @@
         }
 
         // --- CALENDAR LOGIC ---
-        function renderCalendar() {
-            const year = currDate.getFullYear();
-            const month = currDate.getMonth();
+        function renderCalendar(daysInMonth) {
+            document.getElementById('monthYearDisplay').innerText = new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
             
-            document.getElementById('monthYearDisplay').innerText = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
             const calBody = document.getElementById('calendarBody');
             calBody.innerHTML = '';
             
-            const firstDayIndex = new Date(year, month, 1).getDay(); // Sunday = 0
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); // Sunday = 0
             
             for (let i = 0; i < firstDayIndex; i++) calBody.innerHTML += `<div class="calendar-day empty-slot"></div>`;
             
             for (let day = 1; day <= daysInMonth; day++) {
-                let mStr = (month + 1).toString().padStart(2, '0');
+                let mStr = (currentMonth + 1).toString().padStart(2, '0');
                 let dStr = day.toString().padStart(2, '0');
-                let dateKey = `${year}-${mStr}-${dStr}`;
+                let dateKey = `${currentYear}-${mStr}-${dStr}`;
                 
                 let dotHtml = globalActivityDates.includes(dateKey) ? `<div class="activity-dot"></div>` : '';
                 calBody.innerHTML += `<div class="calendar-day" onclick="fetchDayAudit('${dateKey}')">${day}${dotHtml}</div>`;
             }
-        }
 
-        function changeMonth(step) { currDate.setMonth(currDate.getMonth() + step); renderCalendar(); }
+            document.getElementById('loader-calendar').classList.add('d-none');
+        }
 
         // --- DAY AUDIT LOGIC ---
         async function fetchDayAudit(dateKey) {
