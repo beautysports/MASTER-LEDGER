@@ -34,6 +34,11 @@
         .btn-custom:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: white; }
         .btn-gold { background-color: #C5A059; color: white; }
         .btn-gold:hover { background-color: #b08d4b; color: white; }
+        
+        /* Action Buttons */
+        .action-btn { font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid #EAE0D5; background: #fff; transition: 0.2s; }
+        .action-btn:hover { background: #f8f9fa; border-color: #C5A059; }
+        .action-btn.text-danger:hover { border-color: #dc3545; background: #fdf2f2; }
 
         .empty-state { display: flex; align-items: center; justify-content: center; padding: 40px; color: #9ca3af; font-size: 0.95em; text-align: center; flex-direction: column; }
 
@@ -110,11 +115,12 @@
                             <th class="ps-4 py-3 border-0">Date</th>
                             <th class="text-center py-3 border-0">Type</th>
                             <th class="py-3 border-0 mobile-hide">Details</th>
-                            <th class="text-end pe-4 py-3 border-0">Amount (₹)</th>
+                            <th class="text-end py-3 border-0">Amount (₹)</th>
+                            <th class="text-center pe-4 py-3 border-0 no-print">Action</th>
                         </tr>
                     </thead>
                     <tbody id="ledger-body">
-                        <tr><td colspan="4" class="empty-state">Loading ledger history...</td></tr>
+                        <tr><td colspan="5" class="empty-state">Loading ledger history...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -182,7 +188,8 @@
                         badge: 'VAULT',
                         ref: log.reference_note || 'Manual Adjustment',
                         isPositive: parseFloat(log.amount) >= 0,
-                        amount: Math.abs(parseFloat(log.amount))
+                        amount: Math.abs(parseFloat(log.amount)),
+                        rawAmount: parseFloat(log.amount) // The raw signed amount stored in DB
                     });
                 });
             }
@@ -210,7 +217,10 @@
                         badge: badge,
                         ref: details,
                         isPositive: txn.transaction_type === 'INCOME',
-                        amount: parseFloat(txn.amount)
+                        amount: parseFloat(txn.amount),
+                        vendor_id: txn.vendor_id || 'null',
+                        transaction_type: txn.transaction_type,
+                        category: txn.category || 'none'
                     });
                 });
             }
@@ -253,6 +263,15 @@
                     else if (item.badge === 'UPI') badgeClass = 'bg-primary-subtle text-primary border-primary-subtle';
                     else if (item.badge === 'SWEEP') badgeClass = 'bg-success-subtle text-success border-success-subtle';
 
+                    let adminEditBtn = `
+                        <td class="text-center pe-4 no-print align-middle">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="action-btn text-dark" onclick="editTransaction('${item.id}', '${item.source}', ${item.amount}, ${item.rawAmount || 0}, '${item.vendor_id}', '${item.transaction_type}', '${item.category}', ${item.isPositive})">Edit</button>
+                                <button class="action-btn text-danger" onclick="deleteTransaction('${item.id}', '${item.source}', ${item.amount}, ${item.rawAmount || 0}, '${item.vendor_id}', '${item.transaction_type}', '${item.category}')">Del</button>
+                            </div>
+                        </td>
+                    `;
+
                     tbody.innerHTML += `
                         <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
                             <td class="ps-4 py-3">
@@ -263,13 +282,102 @@
                                 <span class="badge border ${badgeClass} px-2 py-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">${item.badge}</span>
                             </td>
                             <td class="py-3 fw-semibold text-dark mobile-hide" style="font-size: 0.9em;">${item.ref}</td>
-                            <td class="text-end pe-4 py-3 fw-bold ${colorClass} fs-6">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                            <td class="text-end py-3 fw-bold ${colorClass} fs-6">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                            ${adminEditBtn}
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No transactions found matching filters.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No transactions found matching filters.</td></tr>`;
             }
+        }
+
+        // --- GLOBAL EDIT/DELETE LOGIC FOR MULTIPLE TABLES ---
+        async function editTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category, isPositive) {
+            const { value: newAmountStr } = await Swal.fire({
+                title: 'Modify Transaction Amount',
+                input: 'number',
+                inputValue: absAmount,
+                showCancelButton: true,
+                confirmButtonColor: '#2C2C2C',
+                confirmButtonText: 'Update'
+            });
+
+            if (!newAmountStr) return; 
+            const newAbsAmount = parseFloat(newAmountStr);
+            if (isNaN(newAbsAmount) || newAbsAmount <= 0) return Swal.fire('Error', 'Invalid amount.', 'error');
+            
+            const difference = newAbsAmount - absAmount;
+            if (difference === 0) return; 
+
+            if (source === 'RESERVE') {
+                // Determine signed logic based on whether it was a deposit or withdrawal
+                const newSignedAmount = isPositive ? newAbsAmount : -Math.abs(newAbsAmount);
+                const signedDifference = newSignedAmount - rawAmount;
+
+                const { error: updateErr } = await supabaseClient.from('master_ledger_logs').update({ amount: newSignedAmount }).eq('id', id);
+                if (updateErr) return Swal.fire('Database Error', updateErr.message, 'error');
+
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                const updatedBal = parseFloat(shopData.master_ledger_balance || 0) + signedDifference;
+                await supabaseClient.from('shops').update({ master_ledger_balance: updatedBal }).eq('id', currentShopId);
+
+            } else if (source === 'DAILY') {
+                const { error: updateErr } = await supabaseClient.from('daily_transactions').update({ amount: newAbsAmount }).eq('id', id);
+                if (updateErr) return Swal.fire('Database Error', updateErr.message, 'error');
+
+                // Adjust Vendor Balances if applicable
+                if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
+                    const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
+                    if (vData) {
+                        const updatedBal = parseFloat(vData.outstanding_balance || 0) - difference;
+                        await supabaseClient.from('vendors').update({ outstanding_balance: updatedBal }).eq('id', vendorIdStr);
+                    }
+                }
+            }
+
+            Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            await loadMasterLedgerData();
+        }
+
+        async function deleteTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category) {
+            const result = await Swal.fire({
+                title: 'Wipe Record?',
+                text: "This action cannot be undone. Associated balances will be adjusted automatically.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#2C2C2C',
+                confirmButtonText: 'Yes, Delete'
+            });
+
+            if (!result.isConfirmed) return;
+
+            if (source === 'RESERVE') {
+                const { error: delError } = await supabaseClient.from('master_ledger_logs').delete().eq('id', id);
+                if (delError) return Swal.fire('Error', delError.message, 'error');
+
+                // Subtracting the original signed amount reverses it (e.g. Current - (500) or Current - (-500))
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                const updatedBal = parseFloat(shopData.master_ledger_balance || 0) - rawAmount;
+                await supabaseClient.from('shops').update({ master_ledger_balance: updatedBal }).eq('id', currentShopId);
+
+            } else if (source === 'DAILY') {
+                const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', id);
+                if (delError) return Swal.fire('Error', delError.message, 'error');
+
+                // Refund Vendor Balance if applicable
+                if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
+                    const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
+                    if (vData) {
+                        const restoredBal = parseFloat(vData.outstanding_balance || 0) + absAmount;
+                        await supabaseClient.from('vendors').update({ outstanding_balance: restoredBal }).eq('id', vendorIdStr);
+                    }
+                }
+            }
+
+            Swal.fire({ title: 'Deleted', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            await loadMasterLedgerData();
         }
 
         // --- MANUAL RESERVE VAULT ACTIONS ---
@@ -334,10 +442,10 @@
         }
 
         function downloadLedgerPDF() {
-            document.querySelector('.no-print').classList.add('d-none');
+            document.querySelectorAll('.no-print').forEach(el => el.classList.add('d-none'));
             const element = document.getElementById('pdf-export-area');
             const opt = { margin: 10, filename: `Master_Ledger_Statement.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-            html2pdf().from(element).set(opt).save().then(() => document.querySelector('.no-print').classList.remove('d-none'));
+            html2pdf().from(element).set(opt).save().then(() => document.querySelectorAll('.no-print').forEach(el => el.classList.remove('d-none')));
         }
     </script>
 </body>
