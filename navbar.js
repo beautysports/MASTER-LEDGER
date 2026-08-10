@@ -31,7 +31,7 @@ async function loadPremiumLayout() {
             const bs = document.createElement('link'); bs.id = 'bs-css'; bs.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'; bs.rel = 'stylesheet'; document.head.appendChild(bs);
         }
 
-        // 4. APPLY PREMIUM BEAUTY SPORTS CSS & UNIVERSAL HAMBURGER LOGIC
+        // 4. APPLY PREMIUM COLLAPSIBLE CSS
         const style = document.createElement('style');
         style.innerHTML = `
             :root { 
@@ -55,39 +55,54 @@ async function loadPremiumLayout() {
             ::-webkit-scrollbar-thumb { background: #EAE0D5; border-radius: 10px; }
             ::-webkit-scrollbar-thumb:hover { background: var(--accent-gold); }
             
-            /* Desktop Sidebar Default */
-            .sidebar { height: 100vh; width: 260px; position: fixed; top:0; left:0; background: var(--sidebar-dark); color: white; z-index: 1001; border-right: 1px solid rgba(255,255,255,0.05); box-shadow: 4px 0 20px rgba(0,0,0,0.05); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(0); }
-            .sidebar-brand { padding: 2rem 1.5rem; font-weight: 800; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 1.15rem; display: flex; align-items: center; gap: 10px; text-transform: uppercase; }
+            /* DESKTOP SIDEBAR: DEFAULT COLLAPSED (80px) */
+            .sidebar { height: 100vh; width: 80px; position: fixed; top:0; left:0; background: var(--sidebar-dark); color: white; z-index: 1001; border-right: 1px solid rgba(255,255,255,0.05); box-shadow: 4px 0 20px rgba(0,0,0,0.05); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-x: hidden; white-space: nowrap; }
             
-            .sidebar-nav-link { color: rgba(255, 255, 255, 0.6); padding: 1rem 1.5rem; transition: all 0.3s ease; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; border-left: 4px solid transparent; display: flex; align-items: center; gap: 12px; text-decoration: none; }
-            .sidebar-nav-link svg { transition: all 0.3s ease; opacity: 0.7; }
-            .sidebar-nav-link:hover { color: white; background: var(--sidebar-hover); transform: translateX(4px); }
-            .sidebar-nav-link:hover svg { opacity: 1; color: var(--accent-gold); }
+            .sidebar-brand { padding: 2rem 0; justify-content: center; font-weight: 800; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 1.15rem; display: flex; align-items: center; text-transform: uppercase; }
+            .sidebar-brand .brand-text { display: none; opacity: 0; transition: opacity 0.3s ease; margin-left: 10px; }
+            
+            .sidebar-nav-link { color: rgba(255, 255, 255, 0.6); padding: 1.25rem 0; justify-content: center; transition: all 0.3s ease; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; border-left: 4px solid transparent; display: flex; align-items: center; text-decoration: none; }
+            .sidebar-nav-link svg { transition: all 0.3s ease; opacity: 0.7; min-width: 18px; }
+            .sidebar-nav-link .nav-text { display: none; opacity: 0; transition: opacity 0.3s ease; margin-left: 12px; }
+
+            .sidebar-nav-link:hover { color: white; background: var(--sidebar-hover); }
             .sidebar-nav-link.active { color: white; background: var(--sidebar-hover); border-left: 4px solid var(--accent-gold); }
             .sidebar-nav-link.active svg { opacity: 1; color: var(--accent-gold); }
 
-            /* Status Bar & Main Content Default */
-            .status-bar { margin-left: 260px; padding: 1.25rem 2.5rem; background: var(--glass); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(197, 160, 89, 0.2); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 999; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-            .main-content-wrapper { margin-left: 260px; padding: 2.5rem; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            /* DESKTOP EXPANDED STATE (260px) */
+            body.sidebar-expanded .sidebar { width: 260px; }
+            body.sidebar-expanded .sidebar-brand { padding: 2rem 1.5rem; justify-content: flex-start; }
+            body.sidebar-expanded .sidebar-brand .brand-text { display: inline; opacity: 1; }
+            body.sidebar-expanded .sidebar-nav-link { padding: 1rem 1.5rem; justify-content: flex-start; }
+            body.sidebar-expanded .sidebar-nav-link .nav-text { display: inline; opacity: 1; }
+            body.sidebar-expanded .sidebar-nav-link:hover { transform: translateX(4px); }
+
+            /* STATUS BAR & MAIN CONTENT: MARGIN TRACKS SIDEBAR WIDTH */
+            .status-bar { margin-left: 80px; padding: 1.25rem 2.5rem; background: var(--glass); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(197, 160, 89, 0.2); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 999; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+            .main-content-wrapper { margin-left: 80px; padding: 2.5rem; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+            body.sidebar-expanded .status-bar, body.sidebar-expanded .main-content-wrapper { margin-left: 260px; }
 
             .btn-outline-danger { border-color: #dc3545; color: #dc3545; }
             .btn-outline-danger:hover { background-color: #dc3545; color: white; }
 
-            /* Universal Hamburger Button & Overlay */
+            /* UNIVERSAL HAMBURGER MENU & OVERLAY */
             .mobile-toggle-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; color: #2C2C2C; padding: 5px; cursor: pointer; border-radius: 6px; transition: 0.2s; }
             .mobile-toggle-btn:hover { background: rgba(0,0,0,0.05); }
             .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s; }
             .sidebar-overlay.active { opacity: 1; visibility: visible; }
 
-            /* DESKTOP COLLAPSED STATE */
-            body.sidebar-collapsed .sidebar { transform: translateX(-100%); }
-            body.sidebar-collapsed .status-bar, body.sidebar-collapsed .main-content-wrapper { margin-left: 0; }
-
             /* MOBILE LAYOUT OVERRIDES */
             @media (max-width: 768px) {
-                .sidebar { transform: translateX(-100%); }
+                .sidebar { transform: translateX(-100%); width: 260px; } /* Always wide when open on mobile */
+                .sidebar-brand { padding: 2rem 1.5rem; justify-content: flex-start; }
+                .sidebar-brand .brand-text { display: inline; opacity: 1; }
+                .sidebar-nav-link { padding: 1rem 1.5rem; justify-content: flex-start; }
+                .sidebar-nav-link .nav-text { display: inline; opacity: 1; }
+
                 body.sidebar-mobile-open .sidebar { transform: translateX(0); }
-                .status-bar, .main-content-wrapper { margin-left: 0; }
+                
+                .status-bar, .main-content-wrapper { margin-left: 0 !important; } /* Lock margins on mobile */
                 .status-bar { padding: 1rem; }
                 .main-content-wrapper { padding: 1.5rem 1rem; }
             }
@@ -97,31 +112,35 @@ async function loadPremiumLayout() {
         const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
         const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
-        // 5. BUILD SIDEBAR
+        // 5. BUILD SIDEBAR LINKS (Summary included)
         const sidebar = document.createElement('div');
         sidebar.id = 'sys-sidebar';
         sidebar.className = 'sidebar';
         
         let navLinks = `
-            <a class="sidebar-nav-link ${currentPage === 'dashboard.html' || currentPage === '' ? 'active' : ''}" href="dashboard.html">
+            <a class="sidebar-nav-link ${currentPage === 'dashboard.html' || currentPage === '' ? 'active' : ''}" href="dashboard.html" title="Dashboard">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
+                <span class="nav-text">Dashboard</span>
             </a>
         `;
 
         if (isAdmin) {
             navLinks += `
-                <a class="sidebar-nav-link ${currentPage === 'master-ledger.html' ? 'active' : ''}" href="master-ledger.html">
+                <a class="sidebar-nav-link ${currentPage === 'master-ledger.html' ? 'active' : ''}" href="master-ledger.html" title="Master Vault">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                    Master Ledger
+                    <span class="nav-text">Master Vault</span>
                 </a>
-                <a class="sidebar-nav-link ${currentPage === 'accounts.html' ? 'active' : ''}" href="accounts.html">
+                <a class="sidebar-nav-link ${currentPage === 'accounts.html' ? 'active' : ''}" href="accounts.html" title="Entity Accounts">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    Entity Accounts
+                    <span class="nav-text">Accounts</span>
                 </a>
-                <a class="sidebar-nav-link ${currentPage === 'staff.html' ? 'active' : ''}" href="staff.html">
+                <a class="sidebar-nav-link ${currentPage === 'staff.html' ? 'active' : ''}" href="staff.html" title="Staff Management">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    Staff Management
+                    <span class="nav-text">Staff</span>
+                </a>
+                <a class="sidebar-nav-link ${currentPage === 'summary.html' ? 'active' : ''}" href="summary.html" title="Business Analytics">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                    <span class="nav-text">Analytics</span>
                 </a>
             `;
         }
@@ -132,10 +151,10 @@ async function loadPremiumLayout() {
 
         sidebar.innerHTML = `
             <div class="sidebar-brand">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="min-width: 24px;">
                     <path d="M20.2 7.8l-7.7 7.7-4-4-5.7 5.7"/><path d="M15 7h6v6"/>
                 </svg>
-                <span><span style="color: var(--accent-gold)">${firstWord}</span> ${restWords}</span>
+                <span class="brand-text"><span style="color: var(--accent-gold)">${firstWord}</span> ${restWords}</span>
             </div>
             <nav class="nav flex-column mt-4">${navLinks}</nav>
         `;
@@ -157,7 +176,7 @@ async function loadPremiumLayout() {
 
         statusBar.innerHTML = `
             <div class="d-flex align-items-center gap-2">
-                <button id="mobile-menu-btn" class="mobile-toggle-btn me-1">
+                <button id="mobile-menu-btn" class="mobile-toggle-btn me-2">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                 </button>
                 ${badgeHtml}
@@ -175,13 +194,13 @@ async function loadPremiumLayout() {
             sidebar.insertAdjacentElement('afterend', statusBar);
         }
 
-        // 8. DUAL-STATE EVENT LISTENERS
+        // 8. DUAL-STATE EVENT LISTENERS (Expand/Collapse Logic)
         document.getElementById('mobile-menu-btn').addEventListener('click', () => {
             if (window.innerWidth > 768) {
-                // Desktop toggle
-                document.body.classList.toggle('sidebar-collapsed');
+                // Desktop toggle expands the sidebar
+                document.body.classList.toggle('sidebar-expanded');
             } else {
-                // Mobile overlay toggle
+                // Mobile toggle opens sidebar and overlay
                 document.body.classList.add('sidebar-mobile-open');
                 overlay.classList.add('active');
             }
