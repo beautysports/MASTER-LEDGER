@@ -48,8 +48,10 @@
 </head>
 <body>
 
+    <!-- Dynamically injects Sidebar and Status Bar -->
     <script src="navbar.js"></script>
 
+    <!-- MAIN WRAPPER -->
     <main class="container-fluid py-4 mb-5 position-relative" style="z-index: 10;">
         
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom">
@@ -98,7 +100,7 @@
                 </div>
             </div>
             
-            <!-- TOTAL EXPENSES (EXCLUDES TRANSFERS) -->
+            <!-- TOTAL EXPENSES -->
             <div class="col-4 col-xl-2">
                 <div class="card card-hover bg-white h-100 p-3 p-md-4 border-0 shadow-sm d-flex flex-column justify-content-center">
                     <div class="field-label">Total Expense</div>
@@ -329,15 +331,11 @@
             if (txns && txns.length > 0) {
                 txns.forEach(txn => {
                     const amt = parseFloat(txn.amount);
-                    
-                    // Identify if this is a vault sweep
-                    const isClosing = txn.reference_note && txn.reference_note.includes('Transferred to Master Vault');
+                    const isSweep = txn.reference_note && txn.reference_note.includes('Transferred to Master Vault') ? true : false;
 
-                    // ACCURATE MATH: Only count true business expenses, ignore sweeps
                     if (txn.transaction_type === 'INCOME') totalSales += amt;
-                    if (txn.transaction_type === 'EXPENSE' && !isClosing) totalExpense += amt;
+                    if (txn.transaction_type === 'EXPENSE' && !isSweep) totalExpense += amt;
 
-                    // The drawer balance still drops because the cash physically left the register
                     if (txn.payment_method === 'CASH') {
                         if (txn.transaction_type === 'INCOME') { drawerCash += amt; runningCashBalance += amt; }
                         if (txn.transaction_type === 'EXPENSE') { drawerCash -= amt; runningCashBalance -= amt; }
@@ -359,7 +357,8 @@
                         mainGroup: mainGroup,
                         partyName: partyName,
                         refNote: refNote,
-                        currentBalance: runningCashBalance
+                        currentBalance: runningCashBalance,
+                        isSweep: isSweep
                     });
                 });
             }
@@ -384,11 +383,12 @@
                     let safeVendorId = txn.vendor_id ? txn.vendor_id : 'null';
                     let safeCategory = txn.category ? txn.category : 'none';
 
+                    // Passing isSweep and the exact created_at timestamp to the edit/delete functions
                     let adminEditBtn = isAdmin ? `
                         <td class="text-center admin-only align-middle">
                             <div class="d-flex justify-content-center gap-2">
-                                <button class="action-btn text-dark" onclick="editTransaction('${txn.id}', ${txn.amt}, '${safeVendorId}', '${txn.transaction_type}', '${safeCategory}')">Edit</button>
-                                <button class="action-btn text-danger" onclick="deleteTransaction('${txn.id}', ${txn.amt}, '${safeVendorId}', '${txn.transaction_type}', '${safeCategory}')">Del</button>
+                                <button class="action-btn text-dark" onclick="editTransaction('${txn.id}', ${txn.amt}, '${safeVendorId}', '${txn.transaction_type}', '${safeCategory}', ${txn.isSweep}, '${txn.created_at}')" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                                <button class="action-btn text-danger" onclick="deleteTransaction('${txn.id}', ${txn.amt}, '${safeVendorId}', '${txn.transaction_type}', '${safeCategory}', ${txn.isSweep}, '${txn.created_at}')" title="Delete"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                             </div>
                         </td>
                     ` : '';
@@ -507,14 +507,14 @@
             await loadDashboardData();
         }
 
-        async function editTransaction(txnId, currentAmount, vendorIdStr, type, category) {
+        async function editTransaction(txnId, currentAmount, vendorIdStr, type, category, isSweep, createdAt) {
             const { value: newAmountStr } = await Swal.fire({
                 title: 'Modify Transaction Amount',
                 input: 'number',
                 inputValue: currentAmount,
                 showCancelButton: true,
                 confirmButtonColor: '#2C2C2C',
-                confirmButtonText: 'Update Amount'
+                confirmButtonText: 'Update'
             });
 
             if (!newAmountStr) return; 
@@ -524,10 +524,21 @@
             const difference = newAmount - currentAmount;
             if (difference === 0) return; 
 
+            // Update the core transaction
             const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
             if (error) return Swal.fire('Database Error', error.message, 'error');
 
-            if (vendorIdStr && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
+            // DOUBLE ENTRY: Sync the Master Vault if a sweep was edited
+            if (isSweep) {
+                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                const updatedVaultBal = parseFloat(shopData.master_ledger_balance || 0) + difference;
+                await supabaseClient.from('shops').update({ master_ledger_balance: updatedVaultBal }).eq('id', currentShopId);
+
+                await supabaseClient.from('master_ledger_logs').update({ amount: newAmount }).eq('created_at', createdAt).eq('shop_id', currentShopId);
+            }
+
+            // DOUBLE ENTRY: Sync Vendor Ledgers if a payment was edited
+            if (vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                 const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
                 if (vData) {
                     const updatedBal = parseFloat(vData.outstanding_balance || 0) - difference;
@@ -539,10 +550,10 @@
             await loadDashboardData();
         }
 
-        async function deleteTransaction(txnId, amount, vendorIdStr, type, category) {
+        async function deleteTransaction(txnId, amount, vendorIdStr, type, category, isSweep, createdAt) {
             const result = await Swal.fire({
                 title: 'Wipe Record?',
-                text: "If this was a Kuri/Vendor payment, their balance will automatically be refunded.",
+                text: isSweep ? "This will return the cash to the drawer and deduct it from the Master Vault." : "Associated balances will be reversed.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
@@ -551,10 +562,21 @@
             });
 
             if (result.isConfirmed) {
+                // Delete the core transaction
                 const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', txnId);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
 
-                if (vendorIdStr && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
+                // DOUBLE ENTRY: Revert the Master Vault if a sweep was deleted
+                if (isSweep) {
+                    const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                    const revertedVaultBal = parseFloat(shopData.master_ledger_balance || 0) - amount;
+                    await supabaseClient.from('shops').update({ master_ledger_balance: revertedVaultBal }).eq('id', currentShopId);
+
+                    await supabaseClient.from('master_ledger_logs').delete().eq('created_at', createdAt).eq('shop_id', currentShopId);
+                }
+
+                // DOUBLE ENTRY: Refund Vendor Balance if applicable
+                if (vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                     const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
                     if (vData) {
                         const restoredBal = parseFloat(vData.outstanding_balance || 0) + amount;
@@ -619,7 +641,6 @@
 
                     await supabaseClient.from('shops').update({ master_ledger_balance: newVaultBal }).eq('id', currentShopId);
 
-                    // FIX: Pass the submissionTime so the Vault ledger records the correct logical date
                     await supabaseClient.from('master_ledger_logs').insert([{
                         shop_id: currentShopId,
                         transaction_type: 'DEPOSIT',
