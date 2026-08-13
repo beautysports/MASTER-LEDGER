@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accounts & Vendors</title>
     
-    <!-- BOOTSTRAP 5 & GOOGLE FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- SYNCHRONOUS SUPABASE CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -17,36 +14,30 @@
 
     <style>
         body { font-family: 'Public Sans', sans-serif; background-color: #FDFBF7; }
-        
         .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; border: 1px solid rgba(197, 160, 89, 0.15); }
         .card-hover:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); }
-        
         .text-gold { color: #C5A059; }
         .bg-gold-subtle { background-color: rgba(197, 160, 89, 0.1); }
-        
         .form-control, .form-select { background: #F8F9FA; border: 1px solid #EAE0D5; padding: 10px 15px; border-radius: 10px; font-weight: 500; transition: 0.2s; }
         .form-control:focus, .form-select:focus { background: #FFF; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.15); border-color: #C5A059; outline: none; }
-        
         .nav-pills .nav-link { color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; border-radius: 30px; padding: 10px 20px; transition: 0.2s; cursor: pointer; }
         .nav-pills .nav-link.active { background-color: #2C2C2C; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-
         .account-item { padding: 15px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; background: white; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
         .account-item:hover { border-color: #C5A059; transform: translateY(-2px); }
         .account-item.active { background: #2C2C2C; color: white !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .account-item.active .acc-name { color: white !important; }
         .account-item.active .acc-bal { color: #f87171 !important; }
-        
         .acc-name { font-weight: 700; font-size: 0.95em; color: #2C2C2C; display: block; }
         .acc-bal { font-size: 0.85em; font-weight: 800; color: #dc2626; }
-
         .btn-custom { background-color: #2C2C2C; color: white; border: none; font-weight: 800; padding: 12px 20px; border-radius: 10px; transition: 0.2s; letter-spacing: 0.5px; }
         .btn-custom:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: white; }
-        
         .btn-gold { background-color: #C5A059; color: white; }
         .btn-gold:hover { background-color: #b08d4b; color: white; }
-
+        .field-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+        .action-btn { font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid #EAE0D5; background: #fff; transition: 0.2s; }
+        .action-btn:hover { background: #f8f9fa; border-color: #C5A059; }
+        .action-btn.text-danger:hover { border-color: #dc3545; background: #fdf2f2; }
         .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 40px; flex-direction: column; }
-
         @media (max-width: 768px) {
             .mobile-hide { display: none !important; }
             .sticky-md-top { position: relative !important; z-index: 1; }
@@ -60,7 +51,6 @@
     <script src="navbar.js"></script>
 
     <main class="container-fluid py-4 mb-5 hidden" id="admin-content">
-        
         <div class="row g-4">
             
             <!-- LEFT: DIRECTORY -->
@@ -108,7 +98,13 @@
                         
                         <div class="p-4 p-md-5 border-bottom bg-light text-center position-relative">
                             <div class="small fw-bold text-muted text-uppercase mb-2 tracking-wide" id="pb-type" style="letter-spacing: 1px;">Vendor Account</div>
-                            <h2 class="fw-bold m-0 text-dark mb-1" id="pb-name">Account Name</h2>
+                            
+                            <!-- VENDOR EDIT IN HEADER -->
+                            <div class="d-flex justify-content-center align-items-center mb-1">
+                                <h2 class="fw-bold m-0 text-dark" id="pb-name">Account Name</h2>
+                                <button class="btn btn-sm btn-light border mx-2 no-print admin-only d-none" onclick="editVendorDetails()" title="Edit Account Details">✎</button>
+                            </div>
+                            
                             <div class="small text-muted fw-semibold mb-4" id="pb-meta">Phone: - | GST: -</div>
                             
                             <div class="d-inline-block bg-white px-4 py-3 rounded-4 shadow-sm border" style="border-color: rgba(197, 160, 89, 0.2) !important;">
@@ -128,13 +124,14 @@
                                 <thead class="bg-light" style="border-top: 1px solid #F0F0F0; border-bottom: 2px solid #EAE0D5;">
                                     <tr class="small text-muted fw-bold text-uppercase" style="letter-spacing: 0.5px;">
                                         <th class="ps-4 py-3 border-0">Date</th>
-                                        <th class="py-3 border-0 text-center">Type</th>
+                                        <th class="text-center py-3 border-0">Type</th>
                                         <th class="py-3 border-0 mobile-hide">Details</th>
-                                        <th class="text-end pe-4 py-3 border-0">Amount (₹)</th>
+                                        <th class="text-end py-3 border-0">Amount (₹)</th>
+                                        <th class="text-center pe-4 py-3 border-0 no-print admin-only d-none">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="pb-history">
-                                    <tr><td colspan="4" class="text-center py-5 text-muted fw-semibold">Select an account to view history.</td></tr>
+                                    <tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Select an account to view history.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -248,28 +245,31 @@
         }
 
         async function selectVendor(vendor, element) {
-            activeAccount = vendor;
+            // Because selectVendor gets called directly after edits, we need to ensure we have the freshest data
+            const { data: refreshedVendor } = await supabaseClient.from('vendors').select('*').eq('id', vendor.id).single();
+            activeAccount = refreshedVendor || vendor;
+
             document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
             if (element) element.classList.add('active');
 
             document.getElementById('empty-pane').classList.add('d-none');
             document.getElementById('passbook-pane').classList.remove('d-none');
 
-            document.getElementById('pb-name').innerText = vendor.name;
-            document.getElementById('pb-bal').innerText = parseFloat(vendor.outstanding_balance || 0).toFixed(2);
-            document.getElementById('pb-type').innerText = vendor.account_type === 'finance' ? 'Finance / EMI Account' : 'Vendor Account';
+            document.getElementById('pb-name').innerText = activeAccount.name;
+            document.getElementById('pb-bal').innerText = parseFloat(activeAccount.outstanding_balance || 0).toFixed(2);
+            document.getElementById('pb-type').innerText = activeAccount.account_type === 'finance' ? 'Finance / EMI Account' : 'Vendor Account';
             
-            const metaText = vendor.account_type === 'finance' ? 
-                `Acct/Phone: ${vendor.phone || '-'} | Ref: ${vendor.gst_number || '-'}` : 
-                `Phone: ${vendor.phone || '-'} | GST: ${vendor.gst_number || '-'}`;
+            const metaText = activeAccount.account_type === 'finance' ? 
+                `Acct/Phone: ${activeAccount.phone || '-'} | Ref: ${activeAccount.gst_number || '-'}` : 
+                `Phone: ${activeAccount.phone || '-'} | GST: ${activeAccount.gst_number || '-'}`;
             document.getElementById('pb-meta').innerText = metaText;
 
-            await loadVendorHistory(vendor.id);
+            await loadVendorHistory(activeAccount.id);
         }
 
         async function loadVendorHistory(vendorId) {
             const tbody = document.getElementById('pb-history');
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-5 text-muted fw-semibold">Loading history...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Loading history...</td></tr>`;
 
             const { data: bills } = await supabaseClient.from('vendor_bills').select('*').eq('vendor_id', vendorId).order('bill_date', { ascending: false });
             const { data: reservePayouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`).order('created_at', { ascending: false });
@@ -280,6 +280,7 @@
             if (bills) {
                 bills.forEach(b => {
                     rawHistoryData.push({
+                        id: b.id,
                         dateStr: new Date(b.bill_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
                         ref: b.bill_number ? `Ref #${b.bill_number}` : '-',
                         type: 'DUE',
@@ -294,6 +295,7 @@
                 reservePayouts.forEach(p => {
                     if (p.amount < 0) { 
                         rawHistoryData.push({
+                            id: p.id,
                             dateStr: new Date(p.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
                             ref: p.reference_note || '-',
                             type: 'VAULT',
@@ -308,6 +310,7 @@
             if (floorPayouts) {
                 floorPayouts.forEach(fp => {
                     rawHistoryData.push({
+                        id: fp.id,
                         dateStr: new Date(fp.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
                         ref: fp.reference_note || '-',
                         type: fp.payment_method, // CASH or UPI
@@ -336,6 +339,16 @@
                     else if (item.type === 'VAULT') badgeClass = 'bg-gold-subtle text-gold border';
                     else if (item.type === 'UPI') badgeClass = 'bg-primary-subtle text-primary border-primary-subtle';
 
+                    let adminEditBtn = isAdmin && item.type === 'DUE' ? `
+                        <td class="text-center pe-4 no-print align-middle admin-only">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="action-btn text-dark" onclick="editBill('${item.id}', ${item.amount})">Edit</button>
+                                <button class="action-btn text-danger" onclick="deleteBill('${item.id}', ${item.amount})">Del</button>
+                            </div>
+                        </td>
+                    ` : `<td class="text-center pe-4 no-print align-middle admin-only"></td>`;
+
+                    // If not admin, the column gets hidden entirely by CSS anyway.
                     tbody.innerHTML += `
                         <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
                             <td class="ps-4 py-3 fw-bold small text-muted">
@@ -346,12 +359,125 @@
                                 <span class="badge border ${badgeClass} px-2 py-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">${item.type}</span>
                             </td>
                             <td class="py-3 fw-semibold text-dark mobile-hide" style="font-size: 0.9em;">${item.ref}</td>
-                            <td class="text-end pe-4 py-3 fw-bold ${colorClass} fs-6">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                            <td class="text-end ${isAdmin ? '' : 'pe-4'} py-3 fw-bold ${colorClass} fs-6">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                            ${adminEditBtn}
                         </tr>
                     `;
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-5 text-muted fw-semibold">No records found.</td></tr>`;
+                const colSpan = isAdmin ? 5 : 4;
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-5 text-muted fw-semibold">No records found.</td></tr>`;
+            }
+        }
+
+        // --- EDIT VENDOR DETAILS & OPENING BALANCE ---
+        async function editVendorDetails() {
+            if (!activeAccount) return;
+
+            const { value: formValues } = await Swal.fire({
+                title: 'Edit Account Details',
+                html: `
+                    <label class="field-label text-start px-1">Account Name</label>
+                    <input id="swal-edit-name" class="swal2-input form-control mb-3" value="${activeAccount.name}">
+                    <label class="field-label text-start px-1">Phone / Acct No.</label>
+                    <input id="swal-edit-phone" class="swal2-input form-control mb-3" value="${activeAccount.phone || ''}">
+                    <label class="field-label text-start px-1">GST / Ref ID</label>
+                    <input id="swal-edit-gst" class="swal2-input form-control mb-3" value="${activeAccount.gst_number || ''}">
+                    <label class="field-label text-start px-1">Opening Balance (₹)</label>
+                    <input id="swal-edit-ob" class="swal2-input form-control fw-bold" type="number" value="${activeAccount.opening_balance || 0}">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Save Changes',
+                confirmButtonColor: '#2C2C2C',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-edit-name').value;
+                    if (!name) { Swal.showValidationMessage('Account Name is required'); return false; }
+                    return {
+                        name: name,
+                        phone: document.getElementById('swal-edit-phone').value || null,
+                        gst: document.getElementById('swal-edit-gst').value || null,
+                        newOB: parseFloat(document.getElementById('swal-edit-ob').value) || 0
+                    };
+                }
+            });
+
+            if (formValues) {
+                const oldOB = parseFloat(activeAccount.opening_balance || 0);
+                const currentOutstanding = parseFloat(activeAccount.outstanding_balance || 0);
+                
+                // The mathematical difference in opening balance applies directly to the current outstanding balance.
+                const diff = formValues.newOB - oldOB;
+                const newOutstanding = currentOutstanding + diff;
+
+                const { error } = await supabaseClient.from('vendors').update({
+                    name: formValues.name,
+                    phone: formValues.phone,
+                    gst_number: formValues.gst,
+                    opening_balance: formValues.newOB,
+                    outstanding_balance: newOutstanding
+                }).eq('id', activeAccount.id);
+
+                if (error) return Swal.fire('Error', error.message, 'error');
+
+                Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                await fetchDirectory();
+                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+            }
+        }
+
+        // --- EDIT / DELETE BILLS ---
+        async function editBill(billId, currentAmount) {
+            const { value: newAmountStr } = await Swal.fire({
+                title: 'Modify Bill Amount',
+                input: 'number',
+                inputValue: currentAmount,
+                showCancelButton: true,
+                confirmButtonColor: '#2C2C2C',
+                confirmButtonText: 'Update'
+            });
+
+            if (!newAmountStr) return; 
+            const newAmount = parseFloat(newAmountStr);
+            if (isNaN(newAmount) || newAmount <= 0) return Swal.fire('Error', 'Invalid amount.', 'error');
+            
+            const diff = newAmount - currentAmount;
+            if (diff === 0) return;
+
+            const { error: updateErr } = await supabaseClient.from('vendor_bills').update({ amount: newAmount }).eq('id', billId);
+            if (updateErr) return Swal.fire('Database Error', updateErr.message, 'error');
+
+            const currentOutstanding = parseFloat(activeAccount.outstanding_balance || 0);
+            const newOutstanding = currentOutstanding + diff;
+            await supabaseClient.from('vendors').update({ outstanding_balance: newOutstanding }).eq('id', activeAccount.id);
+
+            Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+            await fetchDirectory();
+            selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+        }
+
+        async function deleteBill(billId, amount) {
+            const result = await Swal.fire({
+                title: 'Delete Due Bill?',
+                text: "This will remove the bill and reverse its impact on the outstanding balance.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#2C2C2C',
+                confirmButtonText: 'Yes, Delete'
+            });
+
+            if (result.isConfirmed) {
+                const { error: delError } = await supabaseClient.from('vendor_bills').delete().eq('id', billId);
+                if (delError) return Swal.fire('Error', delError.message, 'error');
+
+                const currentOutstanding = parseFloat(activeAccount.outstanding_balance || 0);
+                const newOutstanding = currentOutstanding - amount;
+                await supabaseClient.from('vendors').update({ outstanding_balance: newOutstanding }).eq('id', activeAccount.id);
+
+                Swal.fire({ title: 'Deleted', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                await fetchDirectory();
+                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
             }
         }
 
@@ -378,12 +504,14 @@
                 preConfirm: () => {
                     const name = document.getElementById('swal-name').value;
                     if (!name) { Swal.showValidationMessage('Account Name is required'); return false; }
+                    const initBal = parseFloat(document.getElementById('swal-bal').value) || 0;
                     return {
                         type: document.getElementById('swal-type').value,
                         name: name,
                         phone: document.getElementById('swal-phone').value || null,
                         gst: document.getElementById('swal-gst').value || null,
-                        balance: parseFloat(document.getElementById('swal-bal').value) || 0
+                        openingBalance: initBal,
+                        balance: initBal // Initial outstanding is same as opening
                     };
                 }
             });
@@ -395,6 +523,7 @@
                     name: formValues.name,
                     phone: formValues.phone,
                     gst_number: formValues.gst,
+                    opening_balance: formValues.openingBalance,
                     outstanding_balance: formValues.balance
                 }]);
 
@@ -447,10 +576,9 @@
                 const newBalance = parseFloat(activeAccount.outstanding_balance || 0) + billData.amount;
                 await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
 
-                activeAccount.outstanding_balance = newBalance;
                 Swal.fire({ title: 'Logged!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await fetchDirectory();
-                selectVendor(activeAccount);
+                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
             }
         }
 
@@ -504,7 +632,6 @@
                     }]);
                 } 
                 else {
-                    // Both DRAWER (Cash) and UPI log to daily_transactions
                     await supabaseClient.from('daily_transactions').insert([{
                         shop_id: currentShopId,
                         transaction_type: 'EXPENSE',
@@ -520,55 +647,19 @@
                 const newBalance = parseFloat(activeAccount.outstanding_balance || 0) - payData.amount;
                 await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
 
-                activeAccount.outstanding_balance = newBalance;
                 Swal.fire({ title: 'Payment Recorded!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await fetchDirectory();
-                selectVendor(activeAccount);
+                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
             }
         }
 
-        async function promptPDFDownload() {
+        function promptPDFDownload() {
             if (!activeAccount) return;
-
-            const { value: timeFilter } = await Swal.fire({
-                title: 'Download Statement',
-                input: 'select',
-                inputOptions: { 'all': 'All Time', '30': 'Last 30 Days', 'month': 'This Month' },
-                showCancelButton: true,
-                confirmButtonText: 'Download',
-                confirmButtonColor: '#2C2C2C'
-            });
-
-            if (!timeFilter) return;
-
-            let filteredData = [...rawHistoryData];
-            const now = new Date();
-
-            if (timeFilter === '30') {
-                const thirtyDaysAgo = new Date();
-                thirtyDaysAgo.setDate(now.getDate() - 30);
-                filteredData = filteredData.filter(item => item.rawDate >= thirtyDaysAgo);
-            } else if (timeFilter === 'month') {
-                filteredData = filteredData.filter(item => item.rawDate.getMonth() === now.getMonth() && item.rawDate.getFullYear() === now.getFullYear());
-            }
-
-            renderTableHistory(filteredData);
-            
-            // Hide Actions from PDF
-            document.querySelector('.passbook-actions').classList.add('d-none');
-
+            document.querySelectorAll('.no-print').forEach(el => el.classList.add('d-none'));
             const element = document.getElementById('pdf-export-area');
-            const opt = {
-                margin:       10,
-                filename:     `${activeAccount.name.replace(/\s+/g, '_')}_Statement.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
+            const opt = { margin: 10, filename: `${activeAccount.name.replace(/\s+/g, '_')}_Statement.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
             html2pdf().from(element).set(opt).save().then(() => {
-                document.querySelector('.passbook-actions').classList.remove('d-none');
-                renderTableHistory(rawHistoryData);
+                document.querySelectorAll('.no-print').forEach(el => el.classList.remove('d-none'));
             });
         }
     </script>
