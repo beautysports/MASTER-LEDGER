@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Ledger & Daily Closing</title>
     
-    <!-- BOOTSTRAP 5 & GOOGLE FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- SYNCHRONOUS SUPABASE CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -17,31 +14,22 @@
 
     <style>
         body { font-family: 'Public Sans', sans-serif; background-color: #FDFBF7; }
-        
         .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; border: 1px solid rgba(197, 160, 89, 0.15); }
         .card-hover:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); transform: translateY(-3px); }
-        
         .text-gold { color: #C5A059; }
         .bg-gold-subtle { background-color: rgba(197, 160, 89, 0.1); }
         .border-gold { border-color: rgba(197, 160, 89, 0.3) !important; }
-
         .form-control, .form-select { background: #F8F9FA; border: 1px solid #EAE0D5; padding: 10px 15px; border-radius: 10px; font-weight: 500; transition: 0.2s; }
         .form-control:focus, .form-select:focus { background: #FFF; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.15); border-color: #C5A059; outline: none; }
-        
         .field-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
-        
         .btn-custom { background-color: #2C2C2C; color: white; border: none; font-weight: 800; padding: 12px 20px; border-radius: 10px; transition: 0.2s; letter-spacing: 0.5px; }
         .btn-custom:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: white; }
         .btn-gold { background-color: #C5A059; color: white; }
         .btn-gold:hover { background-color: #b08d4b; color: white; }
-        
-        /* Action Buttons */
         .action-btn { font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid #EAE0D5; background: #fff; transition: 0.2s; }
         .action-btn:hover { background: #f8f9fa; border-color: #C5A059; }
         .action-btn.text-danger:hover { border-color: #dc3545; background: #fdf2f2; }
-
         .empty-state { display: flex; align-items: center; justify-content: center; padding: 40px; color: #9ca3af; font-size: 0.95em; text-align: center; flex-direction: column; }
-
         @media (max-width: 768px) {
             .mobile-hide { display: none !important; }
             .vault-actions { flex-direction: column; width: 100%; }
@@ -79,9 +67,7 @@
                 </div>
                 <!-- Decorative SVG -->
                 <div class="position-absolute start-50 top-50 translate-middle opacity-10 pe-none" style="z-index: 0;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="currentColor" viewBox="0 0 16 16"><path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/></svg>
                 </div>
             </div>
         </div>
@@ -137,17 +123,11 @@
         window.onload = async () => {
             try {
                 const { data: userData, error: authError } = await supabaseClient.auth.getUser();
-                if (authError || !userData || !userData.user) {
-                    window.location.replace('index.html');
-                    return;
-                }
+                if (authError || !userData || !userData.user) return window.location.replace('index.html');
 
                 const { data: profile } = await supabaseClient.from('user_profiles').select('role, shop_id').eq('id', userData.user.id).single();
                 if (profile) {
-                    if (profile.role !== 'admin') {
-                        window.location.replace('dashboard.html');
-                        return;
-                    }
+                    if (profile.role !== 'admin') return window.location.replace('dashboard.html');
                     currentShopId = profile.shop_id;
                     isAdmin = true;
 
@@ -174,9 +154,7 @@
 
             masterTransactions = [];
 
-            // 1. Fetch Vault (Reserve) Logs
             const { data: reserveLogs } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).order('created_at', { ascending: false });
-
             if (reserveLogs) {
                 reserveLogs.forEach(log => {
                     masterTransactions.push({
@@ -189,14 +167,12 @@
                         ref: log.reference_note || 'Manual Adjustment',
                         isPositive: parseFloat(log.amount) >= 0,
                         amount: Math.abs(parseFloat(log.amount)),
-                        rawAmount: parseFloat(log.amount) // The raw signed amount stored in DB
+                        rawAmount: parseFloat(log.amount)
                     });
                 });
             }
 
-            // 2. Fetch Shop Floor (Daily) Logs
             const { data: dailyTxns } = await supabaseClient.from('daily_transactions').select('*, vendors ( name ), staff ( name )').eq('shop_id', currentShopId).order('created_at', { ascending: false });
-
             if (dailyTxns) {
                 dailyTxns.forEach(txn => {
                     const isClosing = txn.reference_note && txn.reference_note.includes('Daily Cash Closing');
@@ -258,7 +234,7 @@
                     const colorClass = item.isPositive ? 'text-success' : 'text-danger';
                     const sign = item.isPositive ? '+' : '-';
                     
-                    let badgeClass = 'bg-secondary-subtle text-secondary border-secondary-subtle'; // CASH
+                    let badgeClass = 'bg-secondary-subtle text-secondary border-secondary-subtle';
                     if (item.badge === 'VAULT') badgeClass = 'bg-gold-subtle text-gold border-gold';
                     else if (item.badge === 'UPI') badgeClass = 'bg-primary-subtle text-primary border-primary-subtle';
                     else if (item.badge === 'SWEEP') badgeClass = 'bg-success-subtle text-success border-success-subtle';
@@ -292,7 +268,7 @@
             }
         }
 
-        // --- GLOBAL EDIT/DELETE LOGIC FOR MULTIPLE TABLES ---
+        // --- GLOBAL EDIT/DELETE LOGIC ---
         async function editTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category, isPositive) {
             const { value: newAmountStr } = await Swal.fire({
                 title: 'Modify Transaction Amount',
@@ -311,7 +287,6 @@
             if (difference === 0) return; 
 
             if (source === 'RESERVE') {
-                // Determine signed logic based on whether it was a deposit or withdrawal
                 const newSignedAmount = isPositive ? newAbsAmount : -Math.abs(newAbsAmount);
                 const signedDifference = newSignedAmount - rawAmount;
 
@@ -326,7 +301,6 @@
                 const { error: updateErr } = await supabaseClient.from('daily_transactions').update({ amount: newAbsAmount }).eq('id', id);
                 if (updateErr) return Swal.fire('Database Error', updateErr.message, 'error');
 
-                // Adjust Vendor Balances if applicable
                 if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                     const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
                     if (vData) {
@@ -357,7 +331,6 @@
                 const { error: delError } = await supabaseClient.from('master_ledger_logs').delete().eq('id', id);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
 
-                // Subtracting the original signed amount reverses it (e.g. Current - (500) or Current - (-500))
                 const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 const updatedBal = parseFloat(shopData.master_ledger_balance || 0) - rawAmount;
                 await supabaseClient.from('shops').update({ master_ledger_balance: updatedBal }).eq('id', currentShopId);
@@ -366,7 +339,6 @@
                 const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', id);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
 
-                // Refund Vendor Balance if applicable
                 if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                     const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
                     if (vData) {
@@ -380,13 +352,24 @@
             await loadMasterLedgerData();
         }
 
-        // --- MANUAL RESERVE VAULT ACTIONS ---
+        function getManualTimestamp(dateStr) {
+            const now = new Date();
+            const localString = `${dateStr}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            return new Date(localString).toISOString(); 
+        }
+
+        // --- MANUAL RESERVE VAULT ACTIONS WITH DATE SELECTOR ---
         async function openAddFundsModal() {
+            const defaultDate = document.getElementById('filter-date-end').value || new Date().toISOString().split('T')[0];
             const { value: formValues } = await Swal.fire({
                 title: 'Manual Deposit',
                 html: `
-                    <input id="swal-amt" class="swal2-input form-control mb-3 fw-bold text-success" type="number" placeholder="Amount (₹) (Required)">
-                    <input id="swal-note" class="swal2-input form-control" placeholder="Reference Note (e.g., Owner Capital Injection)">
+                    <label class="field-label text-start px-1">Entry Date</label>
+                    <input id="swal-date" class="swal2-input form-control mb-3 fw-bold text-dark" type="date" value="${defaultDate}">
+                    <label class="field-label text-start px-1">Amount (₹)</label>
+                    <input id="swal-amt" class="swal2-input form-control mb-3 fw-bold text-success" type="number" placeholder="Required">
+                    <label class="field-label text-start px-1">Details / Ref</label>
+                    <input id="swal-note" class="swal2-input form-control" placeholder="Optional Note">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
@@ -394,27 +377,42 @@
                 confirmButtonColor: '#10b981',
                 preConfirm: () => {
                     const amount = parseFloat(document.getElementById('swal-amt').value);
+                    const dateVal = document.getElementById('swal-date').value;
                     if (!amount || amount <= 0) { Swal.showValidationMessage('Enter a valid amount'); return false; }
-                    return { amount: amount, note: document.getElementById('swal-note').value || 'Manual Vault Deposit' };
+                    return { amount: amount, note: document.getElementById('swal-note').value || 'Manual Vault Deposit', dateVal: dateVal };
                 }
             });
 
             if (formValues) {
+                const submissionTime = getManualTimestamp(formValues.dateVal);
                 const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 const newReserve = parseFloat(shopData?.master_ledger_balance || 0) + formValues.amount;
+                
                 await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
-                await supabaseClient.from('master_ledger_logs').insert([{ shop_id: currentShopId, transaction_type: 'DEPOSIT', reference_note: formValues.note, amount: formValues.amount }]);
+                await supabaseClient.from('master_ledger_logs').insert([{ 
+                    shop_id: currentShopId, 
+                    transaction_type: 'DEPOSIT', 
+                    reference_note: formValues.note, 
+                    amount: formValues.amount,
+                    created_at: submissionTime 
+                }]);
+                
                 Swal.fire({ title: 'Success!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await loadMasterLedgerData();
             }
         }
 
         async function openWithdrawModal() {
+            const defaultDate = document.getElementById('filter-date-end').value || new Date().toISOString().split('T')[0];
             const { value: formValues } = await Swal.fire({
                 title: 'Manual Withdrawal',
                 html: `
-                    <input id="swal-amt" class="swal2-input form-control mb-3 fw-bold text-danger" type="number" placeholder="Amount (₹) (Required)">
-                    <input id="swal-note" class="swal2-input form-control" placeholder="Reference Note (e.g., Owner Withdrawal)">
+                    <label class="field-label text-start px-1">Entry Date</label>
+                    <input id="swal-date" class="swal2-input form-control mb-3 fw-bold text-dark" type="date" value="${defaultDate}">
+                    <label class="field-label text-start px-1">Amount (₹)</label>
+                    <input id="swal-amt" class="swal2-input form-control mb-3 fw-bold text-danger" type="number" placeholder="Required">
+                    <label class="field-label text-start px-1">Details / Ref</label>
+                    <input id="swal-note" class="swal2-input form-control" placeholder="Optional Note">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
@@ -422,12 +420,14 @@
                 confirmButtonColor: '#ef4444',
                 preConfirm: () => {
                     const amount = parseFloat(document.getElementById('swal-amt').value);
+                    const dateVal = document.getElementById('swal-date').value;
                     if (!amount || amount <= 0) { Swal.showValidationMessage('Enter a valid amount'); return false; }
-                    return { amount: amount, note: document.getElementById('swal-note').value || 'Manual Vault Withdrawal' };
+                    return { amount: amount, note: document.getElementById('swal-note').value || 'Manual Vault Withdrawal', dateVal: dateVal };
                 }
             });
 
             if (formValues) {
+                const submissionTime = getManualTimestamp(formValues.dateVal);
                 const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 let currentReserve = parseFloat(shopData?.master_ledger_balance || 0);
 
@@ -435,7 +435,14 @@
 
                 const newReserve = currentReserve - formValues.amount;
                 await supabaseClient.from('shops').update({ master_ledger_balance: newReserve }).eq('id', currentShopId);
-                await supabaseClient.from('master_ledger_logs').insert([{ shop_id: currentShopId, transaction_type: 'WITHDRAWAL', reference_note: formValues.note, amount: -formValues.amount }]);
+                await supabaseClient.from('master_ledger_logs').insert([{ 
+                    shop_id: currentShopId, 
+                    transaction_type: 'WITHDRAWAL', 
+                    reference_note: formValues.note, 
+                    amount: -formValues.amount,
+                    created_at: submissionTime 
+                }]);
+                
                 Swal.fire({ title: 'Success!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await loadMasterLedgerData();
             }
