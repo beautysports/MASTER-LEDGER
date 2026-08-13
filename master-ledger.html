@@ -64,8 +64,8 @@
                 <div class="vault-actions z-1 d-flex gap-2">
                     <button class="btn btn-custom btn-gold shadow-sm" onclick="openAddFundsModal()">+ DEPOSIT</button>
                     <button class="btn btn-light fw-bold shadow-sm" style="border-radius: 10px; color: #2C2C2C;" onclick="openWithdrawModal()">- WITHDRAW</button>
+                    <button class="btn btn-outline-light fw-bold shadow-sm border-2" style="border-radius: 10px;" onclick="auditVaultBalance()" title="Run System Math Audit">⟳ AUDIT SYNC</button>
                 </div>
-                <!-- Decorative SVG -->
                 <div class="position-absolute start-50 top-50 translate-middle opacity-10 pe-none" style="z-index: 0;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="currentColor" viewBox="0 0 16 16"><path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/></svg>
                 </div>
@@ -145,6 +145,48 @@
                 console.error(err);
             }
         };
+
+        // --- NEW: SYSTEM AUDITOR FUNCTION ---
+        async function auditVaultBalance() {
+            if (!currentShopId) return;
+            
+            console.log("--- INITIATING VAULT MATH AUDIT ---");
+            
+            // 1. Fetch all raw atomic logs from the Vault
+            const { data: logs, error } = await supabaseClient.from('master_ledger_logs').select('amount').eq('shop_id', currentShopId);
+            if (error) return Swal.fire('Audit Error', error.message, 'error');
+
+            let trueMathematicalBalance = 0;
+            if (logs && logs.length > 0) {
+                logs.forEach(log => {
+                    trueMathematicalBalance += parseFloat(log.amount || 0);
+                });
+            }
+
+            // 2. Fetch the potentially broken static balance
+            const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+            let staticBalance = parseFloat(shopData?.master_ledger_balance || 0);
+
+            console.log(`True Mathematical Balance: ₹${trueMathematicalBalance.toFixed(2)}`);
+            console.log(`Stored Static Balance: ₹${staticBalance.toFixed(2)}`);
+
+            // 3. Compare and Override
+            if (Math.abs(trueMathematicalBalance - staticBalance) > 0.01) {
+                console.warn(`MISMATCH DETECTED! Adjusting static balance by ₹${(trueMathematicalBalance - staticBalance).toFixed(2)}`);
+                
+                await supabaseClient.from('shops').update({ master_ledger_balance: trueMathematicalBalance }).eq('id', currentShopId);
+                document.getElementById('vault-balance').innerText = trueMathematicalBalance.toFixed(2);
+                
+                Swal.fire({
+                    title: 'Audit Complete', 
+                    html: `Ledger mismatch found and corrected.<br><br><b>Vault synced to true log sum: ₹${trueMathematicalBalance.toFixed(2)}</b>`, 
+                    icon: 'info'
+                });
+            } else {
+                console.log("Audit Passed: Math is perfectly synced.");
+                Swal.fire('Audit Complete', 'The Vault math is perfectly synced.', 'success');
+            }
+        }
 
         async function loadMasterLedgerData() {
             if (!currentShopId) return;
