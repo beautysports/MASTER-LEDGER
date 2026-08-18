@@ -50,7 +50,7 @@
 
     <script src="navbar.js"></script>
 
-    <main class="container-fluid py-4 mb-5 hidden" id="admin-content">
+    <main class="container-fluid py-4 mb-5 d-none" id="admin-content">
         <div class="row g-4">
             
             <!-- LEFT: DIRECTORY -->
@@ -99,7 +99,6 @@
                         <div class="p-4 p-md-5 border-bottom bg-light text-center position-relative">
                             <div class="small fw-bold text-muted text-uppercase mb-2 tracking-wide" id="pb-type" style="letter-spacing: 1px;">Vendor Account</div>
                             
-                            <!-- VENDOR EDIT IN HEADER -->
                             <div class="d-flex justify-content-center align-items-center mb-1">
                                 <h2 class="fw-bold m-0 text-dark" id="pb-name">Account Name</h2>
                                 <button class="btn btn-sm btn-light border mx-2 no-print admin-only d-none" onclick="editVendorDetails()" title="Edit Account Details">✎</button>
@@ -124,14 +123,15 @@
                                 <thead class="bg-light" style="border-top: 1px solid #F0F0F0; border-bottom: 2px solid #EAE0D5;">
                                     <tr class="small text-muted fw-bold text-uppercase" style="letter-spacing: 0.5px;">
                                         <th class="ps-4 py-3 border-0">Date</th>
-                                        <th class="text-center py-3 border-0">Type</th>
-                                        <th class="py-3 border-0 mobile-hide">Details</th>
-                                        <th class="text-end py-3 border-0">Amount (₹)</th>
+                                        <th class="py-3 border-0">Details / Ref</th>
+                                        <th class="text-end py-3 border-0 text-success">Dr (Paid)</th>
+                                        <th class="text-end py-3 border-0 text-danger">Cr (Billed)</th>
+                                        <th class="text-end py-3 border-0 text-dark">Balance</th>
                                         <th class="text-center pe-4 py-3 border-0 no-print admin-only d-none">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="pb-history">
-                                    <tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Select an account to view history.</td></tr>
+                                    <tr><td colspan="6" class="text-center py-5 text-muted fw-semibold">Select an account to view history.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -173,7 +173,7 @@
                         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none'));
                     }
 
-                    document.getElementById('admin-content').classList.remove('hidden');
+                    document.getElementById('admin-content').classList.remove('d-none');
                     await fetchDirectory();
                 }
             } catch (err) {
@@ -245,7 +245,6 @@
         }
 
         async function selectVendor(vendor, element) {
-            // Because selectVendor gets called directly after edits, we need to ensure we have the freshest data
             const { data: refreshedVendor } = await supabaseClient.from('vendors').select('*').eq('id', vendor.id).single();
             activeAccount = refreshedVendor || vendor;
 
@@ -269,11 +268,11 @@
 
         async function loadVendorHistory(vendorId) {
             const tbody = document.getElementById('pb-history');
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Loading history...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted fw-semibold">Loading history...</td></tr>`;
 
-            const { data: bills } = await supabaseClient.from('vendor_bills').select('*').eq('vendor_id', vendorId).order('bill_date', { ascending: false });
-            const { data: reservePayouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`).order('created_at', { ascending: false });
-            const { data: floorPayouts } = await supabaseClient.from('daily_transactions').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false });
+            const { data: bills } = await supabaseClient.from('vendor_bills').select('*').eq('vendor_id', vendorId);
+            const { data: reservePayouts } = await supabaseClient.from('master_ledger_logs').select('*').eq('shop_id', currentShopId).ilike('reference_note', `%${activeAccount.name}%`);
+            const { data: floorPayouts } = await supabaseClient.from('daily_transactions').select('*').eq('vendor_id', vendorId);
 
             rawHistoryData = [];
             
@@ -282,11 +281,10 @@
                     rawHistoryData.push({
                         id: b.id,
                         dateStr: new Date(b.bill_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        ref: b.bill_number ? `Ref #${b.bill_number}` : '-',
+                        ref: b.bill_number ? `Bill Ref #${b.bill_number}` : 'Due Bill',
                         type: 'DUE',
                         amount: parseFloat(b.amount),
-                        isPositive: true, 
-                        rawDate: new Date(b.bill_date)
+                        rawDate: new Date(b.bill_date).getTime()
                     });
                 });
             }
@@ -297,11 +295,10 @@
                         rawHistoryData.push({
                             id: p.id,
                             dateStr: new Date(p.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-                            ref: p.reference_note || '-',
+                            ref: p.reference_note || 'Vault Payment',
                             type: 'VAULT',
                             amount: parseFloat(Math.abs(p.amount)),
-                            isPositive: false, 
-                            rawDate: new Date(p.created_at)
+                            rawDate: new Date(p.created_at).getTime()
                         });
                     }
                 });
@@ -312,15 +309,33 @@
                     rawHistoryData.push({
                         id: fp.id,
                         dateStr: new Date(fp.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        ref: fp.reference_note || '-',
+                        ref: fp.reference_note || `${fp.payment_method} Payment`,
                         type: fp.payment_method, // CASH or UPI
                         amount: parseFloat(Math.abs(fp.amount)),
-                        isPositive: false, 
-                        rawDate: new Date(fp.created_at)
+                        rawDate: new Date(fp.created_at).getTime()
                     });
                 });
             }
 
+            // MATHEMATICAL AUDIT: Sort Oldest to Newest to calculate accurate running balance
+            rawHistoryData.sort((a, b) => a.rawDate - b.rawDate);
+            
+            let runningBalance = parseFloat(activeAccount.opening_balance || 0);
+
+            rawHistoryData.forEach(item => {
+                if (item.type === 'DUE') {
+                    item.cr = item.amount;
+                    item.dr = 0;
+                    runningBalance += item.amount;
+                } else {
+                    item.dr = item.amount;
+                    item.cr = 0;
+                    runningBalance -= item.amount;
+                }
+                item.balance = runningBalance;
+            });
+
+            // UI RENDER: Sort Newest to Oldest so most recent is at the top
             rawHistoryData.sort((a, b) => b.rawDate - a.rawDate);
             renderTableHistory(rawHistoryData);
         }
@@ -331,8 +346,8 @@
 
             if (data.length > 0) {
                 data.forEach(item => {
-                    const colorClass = item.isPositive ? 'text-danger' : 'text-success';
-                    const sign = item.isPositive ? '+' : '-';
+                    const drHtml = item.dr > 0 ? `₹ ${item.dr.toFixed(2)}` : '-';
+                    const crHtml = item.cr > 0 ? `₹ ${item.cr.toFixed(2)}` : '-';
                     
                     let badgeClass = 'bg-secondary-subtle text-secondary border-secondary-subtle'; // default CASH
                     if (item.type === 'DUE') badgeClass = 'bg-danger-subtle text-danger border-danger-subtle';
@@ -348,25 +363,40 @@
                         </td>
                     ` : `<td class="text-center pe-4 no-print align-middle admin-only"></td>`;
 
-                    // If not admin, the column gets hidden entirely by CSS anyway.
                     tbody.innerHTML += `
                         <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
                             <td class="ps-4 py-3 fw-bold small text-muted">
                                 ${item.dateStr}
-                                <div class="d-md-none mt-1 fw-normal text-dark text-truncate" style="max-width: 150px; font-size: 0.8em;">${item.ref}</div>
+                                <span class="badge border ${badgeClass} ms-2 px-1 py-0 d-md-none" style="font-size: 0.6rem;">${item.type}</span>
                             </td>
-                            <td class="text-center py-3">
-                                <span class="badge border ${badgeClass} px-2 py-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">${item.type}</span>
+                            <td class="py-3 fw-semibold text-dark" style="font-size: 0.9em;">
+                                ${item.ref}
+                                <span class="badge border ${badgeClass} ms-2 px-2 py-1 d-none d-md-inline-block" style="font-size: 0.65rem;">${item.type}</span>
                             </td>
-                            <td class="py-3 fw-semibold text-dark mobile-hide" style="font-size: 0.9em;">${item.ref}</td>
-                            <td class="text-end ${isAdmin ? '' : 'pe-4'} py-3 fw-bold ${colorClass} fs-6">${sign} ₹ ${item.amount.toFixed(2)}</td>
+                            <td class="text-end py-3 fw-bold text-success fs-6">${drHtml}</td>
+                            <td class="text-end py-3 fw-bold text-danger fs-6">${crHtml}</td>
+                            <td class="text-end py-3 fw-bold text-dark fs-6">₹ ${item.balance.toFixed(2)}</td>
                             ${adminEditBtn}
                         </tr>
                     `;
                 });
-            } else {
-                const colSpan = isAdmin ? 5 : 4;
-                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-5 text-muted fw-semibold">No records found.</td></tr>`;
+            } 
+            
+            // ALWAYS RENDER OPENING BALANCE AT THE BOTTOM
+            const ob = parseFloat(activeAccount.opening_balance || 0);
+            tbody.innerHTML += `
+                <tr class="bg-light border-top">
+                    <td class="ps-4 py-3 fw-bold small text-muted">-</td>
+                    <td class="py-3 fw-bold text-dark" style="font-size: 0.9em;">Opening Balance</td>
+                    <td class="text-end py-3 fw-bold text-success fs-6">-</td>
+                    <td class="text-end py-3 fw-bold text-danger fs-6">${ob > 0 ? '₹ ' + ob.toFixed(2) : '-'}</td>
+                    <td class="text-end py-3 fw-bold text-dark fs-6">₹ ${ob.toFixed(2)}</td>
+                    <td class="text-center pe-4 no-print admin-only"></td>
+                </tr>
+            `;
+
+            if (data.length === 0 && ob === 0) {
+                tbody.innerHTML += `<tr><td colspan="6" class="text-center py-4 text-muted fw-semibold">No transactions found.</td></tr>`;
             }
         }
 
@@ -406,7 +436,6 @@
                 const oldOB = parseFloat(activeAccount.opening_balance || 0);
                 const currentOutstanding = parseFloat(activeAccount.outstanding_balance || 0);
                 
-                // The mathematical difference in opening balance applies directly to the current outstanding balance.
                 const diff = formValues.newOB - oldOB;
                 const newOutstanding = currentOutstanding + diff;
 
