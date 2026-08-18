@@ -39,6 +39,16 @@
 
         .loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 10; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-weight: 800; color: #C5A059; transition: 0.3s; backdrop-filter: blur(2px); }
         .d-none { display: none !important; }
+
+        /* RESPONSIVE UTILITIES FOR METRICS */
+        @media (min-width: 768px) {
+            .border-end-md { border-right: 1px solid #dee2e6 !important; }
+        }
+        @media (max-width: 767.98px) {
+            .border-bottom-mobile { border-bottom: 1px solid #dee2e6 !important; }
+            .mobile-pb { padding-bottom: 1rem !important; margin-bottom: 1rem !important; }
+            .metric-val { font-size: 1.5rem !important; }
+        }
     </style>
 </head>
 <body>
@@ -88,7 +98,7 @@
 
         <!-- BOTTOM METRICS & CALENDAR -->
         <div class="row g-4 mb-5">
-            <div class="col-lg-5">
+            <div class="col-lg-5 order-2 order-lg-1">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100 position-relative">
                     <div class="loader-overlay" id="loader-calendar">Syncing...</div>
                     <div class="calendar-header">
@@ -104,32 +114,52 @@
                 </div>
             </div>
 
-            <div class="col-lg-7">
+            <div class="col-lg-7 order-1 order-lg-2">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100 d-flex flex-column position-relative">
                     <div class="loader-overlay" id="loader-metrics">Calculating Metrics...</div>
                     <h6 class="fw-bold text-dark mb-3 text-uppercase tracking-wide" style="letter-spacing: 1px;">Period Performance</h6>
                     
-                    <div class="row text-center mb-4 bg-light rounded-3 p-3 mx-0 border" style="border-color: rgba(197, 160, 89, 0.2) !important;">
-                        <div class="col-4 border-end">
+                    <!-- RESPONSIVE METRIC ROW -->
+                    <div class="d-flex flex-column flex-md-row text-center mb-4 bg-light rounded-3 p-3 mx-0 border" style="border-color: rgba(197, 160, 89, 0.2) !important;">
+                        
+                        <!-- INCOME -->
+                        <div class="flex-fill border-end-md border-bottom-mobile mobile-pb pb-md-0 mb-md-0">
                             <div class="small fw-bold text-muted mb-1 text-uppercase">Total Income</div>
-                            <h5 class="fw-bold text-success m-0">₹ <span id="mtd-income">0.00</span></h5>
+                            <h5 class="fw-bold text-success m-0 metric-val">₹ <span id="mtd-income">0.00</span></h5>
+                            
+                            <!-- CASH VS UPI SPLIT -->
+                            <div class="d-flex justify-content-center gap-3 mt-2 pt-2 border-top mx-4 mx-md-2">
+                                <div class="small">
+                                    <span class="text-muted" style="font-size: 0.65rem; font-weight: 800;">CASH:</span> 
+                                    <span class="fw-bold text-dark" style="font-size: 0.75rem;">₹<span id="mtd-cash-in">0.00</span></span>
+                                </div>
+                                <div class="small">
+                                    <span class="text-muted" style="font-size: 0.65rem; font-weight: 800;">UPI:</span> 
+                                    <span class="fw-bold text-primary" style="font-size: 0.75rem;">₹<span id="mtd-upi-in">0.00</span></span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-4 border-end">
+
+                        <!-- EXPENSE -->
+                        <div class="flex-fill border-end-md border-bottom-mobile mobile-pb pb-md-0 mb-md-0 mt-3 mt-md-0 d-flex flex-column justify-content-center">
                             <div class="small fw-bold text-muted mb-1 text-uppercase">Total Expense</div>
-                            <h5 class="fw-bold text-danger m-0">₹ <span id="mtd-expense">0.00</span></h5>
+                            <h5 class="fw-bold text-danger m-0 metric-val">₹ <span id="mtd-expense">0.00</span></h5>
                         </div>
-                        <div class="col-4">
+
+                        <!-- NET PROFIT -->
+                        <div class="flex-fill mt-3 mt-md-0 d-flex flex-column justify-content-center">
                             <div class="small fw-bold text-muted mb-1 text-uppercase">Net Profit</div>
-                            <h5 class="fw-bold m-0" id="mtd-profit">₹ 0.00</h5>
+                            <h5 class="fw-bold m-0 metric-val" id="mtd-profit">₹ 0.00</h5>
                         </div>
                     </div>
                     
+                    <!-- RESPONSIVE LISTS -->
                     <div class="row g-4 flex-grow-1">
-                        <div class="col-6 border-end">
+                        <div class="col-12 col-md-6 border-end-md border-bottom-mobile mobile-pb">
                             <h6 class="small fw-bold text-muted mb-3 text-uppercase border-bottom pb-2">Top Income Streams</h6>
                             <div id="top-income-list"></div>
                         </div>
-                        <div class="col-6">
+                        <div class="col-12 col-md-6">
                             <h6 class="small fw-bold text-muted mb-3 text-uppercase border-bottom pb-2">Top Cost Centers</h6>
                             <div id="top-expense-list"></div>
                         </div>
@@ -268,15 +298,22 @@
 
         function processTrendData(txns, year, month, daysInMonth) {
             const datesMap = {};
-            // Pre-fill the exact selected month with 0s
-            for(let i = 1; i <= daysInMonth; i++) {
+            const today = new Date();
+            let endDay = daysInMonth;
+
+            // DYNAMIC FIX: Stop plotting on 'today' if we are looking at the current active month
+            if (year === today.getFullYear() && month === today.getMonth()) {
+                endDay = today.getDate();
+            }
+
+            for(let i = 1; i <= endDay; i++) {
                 let dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 datesMap[dStr] = { in: 0, out: 0 };
             }
 
             txns.forEach(t => {
                 const dStr = t.created_at.split('T')[0];
-                if (!datesMap[dStr]) return; // Failsafe
+                if (!datesMap[dStr]) return; // Ignores days outside bounds
                 
                 const isSweep = t.reference_note && t.reference_note.includes('Transferred to Master Vault');
                 if (t.transaction_type === 'INCOME') datesMap[dStr].in += parseFloat(t.amount);
@@ -287,7 +324,7 @@
             const incomeData = labels.map(l => datesMap[l].in);
             const expenseData = labels.map(l => datesMap[l].out);
             const displayLabels = labels.map(l => {
-                const p = l.split('-'); return `${p[2]}`; // Just show the day number
+                const p = l.split('-'); return `${p[2]}`; // Show Day Number
             });
 
             document.getElementById('loader-trend').classList.add('d-none');
@@ -313,6 +350,8 @@
         function processMTDData(txns) {
             let mtdIncome = 0;
             let mtdExpense = 0;
+            let mtdCashIncome = 0;
+            let mtdUpiIncome = 0;
             
             let incomeCats = {};
             let expenseCats = {};
@@ -325,25 +364,34 @@
                 if (t.transaction_type === 'INCOME') {
                     mtdIncome += amt;
                     incomeCats[cat] = (incomeCats[cat] || 0) + amt;
+                    
+                    if (t.payment_method === 'CASH') mtdCashIncome += amt;
+                    if (t.payment_method === 'UPI') mtdUpiIncome += amt;
+
                 } else if (t.transaction_type === 'EXPENSE' && !isSweep) {
                     mtdExpense += amt;
                     expenseCats[cat] = (expenseCats[cat] || 0) + amt;
                 }
             });
 
+            // Populate Main Values
             document.getElementById('mtd-income').innerText = mtdIncome.toLocaleString('en-IN', {minimumFractionDigits: 2});
             document.getElementById('mtd-expense').innerText = mtdExpense.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            
+            // Populate Splits
+            document.getElementById('mtd-cash-in').innerText = mtdCashIncome.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            document.getElementById('mtd-upi-in').innerText = mtdUpiIncome.toLocaleString('en-IN', {minimumFractionDigits: 2});
             
             const net = mtdIncome - mtdExpense;
             const netEl = document.getElementById('mtd-profit');
             netEl.innerText = (net >= 0 ? '+' : '') + '₹ ' + net.toLocaleString('en-IN', {minimumFractionDigits: 2});
-            netEl.className = 'fw-bold m-0 ' + (net >= 0 ? 'text-success' : 'text-danger');
+            netEl.className = 'fw-bold m-0 metric-val ' + (net >= 0 ? 'text-success' : 'text-danger');
 
             // Top 5 Income
             const sortedInc = Object.keys(incomeCats).map(k => ({name: k, total: incomeCats[k]})).sort((a,b) => b.total - a.total).slice(0,5);
             let incHtml = '';
             sortedInc.forEach(i => {
-                incHtml += `<div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-bold text-dark">${i.name}</span><span class="small fw-bold text-success">₹ ${i.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>`;
+                incHtml += `<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap"><span class="small fw-bold text-dark text-truncate pe-2" style="max-width: 60%;">${i.name}</span><span class="small fw-bold text-success text-end">₹ ${i.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>`;
             });
             document.getElementById('top-income-list').innerHTML = incHtml || '<span class="text-muted small">No data for period.</span>';
 
@@ -351,7 +399,7 @@
             const sortedExp = Object.keys(expenseCats).map(k => ({name: k, total: expenseCats[k]})).sort((a,b) => b.total - a.total).slice(0,5);
             let expHtml = '';
             sortedExp.forEach(e => {
-                expHtml += `<div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-bold text-dark">${e.name}</span><span class="small fw-bold text-danger">₹ ${e.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>`;
+                expHtml += `<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap"><span class="small fw-bold text-dark text-truncate pe-2" style="max-width: 60%;">${e.name}</span><span class="small fw-bold text-danger text-end">₹ ${e.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span></div>`;
             });
             document.getElementById('top-expense-list').innerHTML = expHtml || '<span class="text-muted small">No data for period.</span>';
 
@@ -426,8 +474,8 @@
 
                     listEl.innerHTML += `
                         <li class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center bg-transparent">
-                            <div><div class="fw-bold small text-dark">${desc}</div><span class="badge bg-light text-dark border px-2 mt-1" style="font-size:0.65rem;">${tx.payment_method}</span></div>
-                            <span class="fw-bold text-${color}">${sign}₹ ${amt.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
+                            <div style="max-width: 65%;"><div class="fw-bold small text-dark text-truncate">${desc}</div><span class="badge bg-light text-dark border px-2 mt-1" style="font-size:0.65rem;">${tx.payment_method}</span></div>
+                            <span class="fw-bold text-${color} text-end" style="max-width: 35%;">${sign}₹ ${amt.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>
                         </li>
                     `;
                 });
