@@ -146,46 +146,37 @@
             }
         };
 
-        // --- NEW: SYSTEM AUDITOR FUNCTION ---
+        // --- SYSTEM AUDITOR FUNCTION (READ-ONLY) ---
+        // IMPORTANT: The vault balance (shops.master_ledger_balance) is now updated LIVE by every
+        // cash income/expense entry (see dashboard.html), not just by manual vault deposits in
+        // master_ledger_logs. That means "sum of master_ledger_logs" is no longer the full picture
+        // of what the balance *should* be, so this function no longer auto-overwrites the stored
+        // balance — doing so would erase live cash activity. It now only reports the manual-deposit
+        // portion for reference. If you suspect real drift, investigate the specific transaction
+        // rather than running an automatic override.
         async function auditVaultBalance() {
             if (!currentShopId) return;
-            
-            console.log("--- INITIATING VAULT MATH AUDIT ---");
-            
-            // 1. Fetch all raw atomic logs from the Vault
+
             const { data: logs, error } = await supabaseClient.from('master_ledger_logs').select('amount').eq('shop_id', currentShopId);
             if (error) return Swal.fire('Audit Error', error.message, 'error');
 
-            let trueMathematicalBalance = 0;
+            let manualDepositsTotal = 0;
             if (logs && logs.length > 0) {
                 logs.forEach(log => {
-                    trueMathematicalBalance += parseFloat(log.amount || 0);
+                    manualDepositsTotal += parseFloat(log.amount || 0);
                 });
             }
 
-            // 2. Fetch the potentially broken static balance
             const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-            let staticBalance = parseFloat(shopData?.master_ledger_balance || 0);
+            let liveBalance = parseFloat(shopData?.master_ledger_balance || 0);
 
-            console.log(`True Mathematical Balance: ₹${trueMathematicalBalance.toFixed(2)}`);
-            console.log(`Stored Static Balance: ₹${staticBalance.toFixed(2)}`);
-
-            // 3. Compare and Override
-            if (Math.abs(trueMathematicalBalance - staticBalance) > 0.01) {
-                console.warn(`MISMATCH DETECTED! Adjusting static balance by ₹${(trueMathematicalBalance - staticBalance).toFixed(2)}`);
-                
-                await supabaseClient.from('shops').update({ master_ledger_balance: trueMathematicalBalance }).eq('id', currentShopId);
-                document.getElementById('vault-balance').innerText = trueMathematicalBalance.toFixed(2);
-                
-                Swal.fire({
-                    title: 'Audit Complete', 
-                    html: `Ledger mismatch found and corrected.<br><br><b>Vault synced to true log sum: ₹${trueMathematicalBalance.toFixed(2)}</b>`, 
-                    icon: 'info'
-                });
-            } else {
-                console.log("Audit Passed: Math is perfectly synced.");
-                Swal.fire('Audit Complete', 'The Vault math is perfectly synced.', 'success');
-            }
+            Swal.fire({
+                title: 'Vault Reference Check',
+                html: `<b>Live Vault Balance:</b> ₹${liveBalance.toFixed(2)} (updated automatically with every cash entry)<br><br>` +
+                      `<b>Manual Vault Log Total:</b> ₹${manualDepositsTotal.toFixed(2)} (legacy deposits/adjustments only)<br><br>` +
+                      `<span class="text-muted small">These two numbers are not expected to match — the live balance also includes ongoing cash income and expense. This check no longer auto-corrects the balance.</span>`,
+                icon: 'info'
+            });
         }
 
         async function loadMasterLedgerData() {
@@ -209,7 +200,10 @@
                         ref: log.reference_note || 'Manual Adjustment',
                         isPositive: parseFloat(log.amount) >= 0,
                         amount: Math.abs(parseFloat(log.amount)),
-                        rawAmount: parseFloat(log.amount)
+                        rawAmount: parseFloat(log.amount),
+                        createdAtRaw: log.created_at,
+                        payment_method: 'null',
+                        isSweep: false
                     });
                 });
             }
@@ -229,6 +223,7 @@
                     masterTransactions.push({
                         id: txn.id,
                         rawDate: new Date(txn.created_at),
+                        createdAtRaw: txn.created_at,
                         dateStr: new Date(txn.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
                         timeStr: new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
                         source: 'DAILY',
@@ -238,7 +233,9 @@
                         amount: parseFloat(txn.amount),
                         vendor_id: txn.vendor_id || 'null',
                         transaction_type: txn.transaction_type,
-                        category: txn.category || 'none'
+                        category: txn.category || 'none',
+                        payment_method: txn.payment_method || 'CASH',
+                        isSweep: isClosing
                     });
                 });
             }
@@ -284,8 +281,8 @@
                     let adminEditBtn = `
                         <td class="text-center pe-4 no-print align-middle">
                             <div class="d-flex justify-content-center gap-2">
-                                <button class="action-btn text-dark" onclick="editTransaction('${item.id}', '${item.source}', ${item.amount}, ${item.rawAmount || 0}, '${item.vendor_id}', '${item.transaction_type}', '${item.category}', ${item.isPositive})">Edit</button>
-                                <button class="action-btn text-danger" onclick="deleteTransaction('${item.id}', '${item.source}', ${item.amount}, ${item.rawAmount || 0}, '${item.vendor_id}', '${item.transaction_type}', '${item.category}')">Del</button>
+                                <button class="action-btn text-dark" onclick="editTransaction('${item.id}', '${item.source}', ${item.amount}, ${item.rawAmount || 0}, '${item.vendor_id}', '${item.transaction_type}', '${item.category}', ${item.isPositive}, '${item.payment_method}', ${item.isSweep}, '${item.createdAtRaw}')">Edit</button>
+                                <button class="action-btn text-danger" onclick="deleteTransaction('${item.id}', '${item.source}', ${item.amount}, ${item.rawAmount || 0}, '${item.vendor_id}', '${item.transaction_type}', '${item.category}', '${item.payment_method}', ${item.isSweep}, '${item.createdAtRaw}')">Del</button>
                             </div>
                         </td>
                     `;
@@ -311,7 +308,7 @@
         }
 
         // --- GLOBAL EDIT/DELETE LOGIC ---
-        async function editTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category, isPositive) {
+        async function editTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category, isPositive, paymentMethod, isSweep, createdAtRaw) {
             const { value: newAmountStr } = await Swal.fire({
                 title: 'Modify Transaction Amount',
                 input: 'number',
@@ -343,6 +340,26 @@
                 const { error: updateErr } = await supabaseClient.from('daily_transactions').update({ amount: newAbsAmount }).eq('id', id);
                 if (updateErr) return Swal.fire('Database Error', updateErr.message, 'error');
 
+                // LIVE VAULT SYNC: cash transactions affect the vault balance in real time
+                // (mirrors dashboard.html). Sweeps (legacy) and cash income add the difference;
+                // cash expense subtracts it. UPI never touches the vault.
+                if (paymentMethod === 'CASH') {
+                    let vaultDelta = 0;
+                    if (isSweep) vaultDelta = difference;
+                    else if (type === 'INCOME') vaultDelta = difference;
+                    else if (type === 'EXPENSE') vaultDelta = -difference;
+
+                    if (vaultDelta !== 0) {
+                        const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                        const updatedVaultBal = parseFloat((shopData && shopData.master_ledger_balance) || 0) + vaultDelta;
+                        await supabaseClient.from('shops').update({ master_ledger_balance: updatedVaultBal }).eq('id', currentShopId);
+                    }
+
+                    if (isSweep) {
+                        await supabaseClient.from('master_ledger_logs').update({ amount: newAbsAmount }).eq('created_at', createdAtRaw).eq('shop_id', currentShopId);
+                    }
+                }
+
                 if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                     const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
                     if (vData) {
@@ -356,7 +373,7 @@
             await loadMasterLedgerData();
         }
 
-        async function deleteTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category) {
+        async function deleteTransaction(id, source, absAmount, rawAmount, vendorIdStr, type, category, paymentMethod, isSweep, createdAtRaw) {
             const result = await Swal.fire({
                 title: 'Wipe Record?',
                 text: "This action cannot be undone. Associated balances will be adjusted automatically.",
@@ -380,6 +397,26 @@
             } else if (source === 'DAILY') {
                 const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', id);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
+
+                // LIVE VAULT SYNC: reverse whatever this cash transaction had contributed.
+                // Sweep and cash-income removals subtract from the vault; cash-expense
+                // removals add back. UPI never touches the vault.
+                if (paymentMethod === 'CASH') {
+                    let vaultDelta = 0;
+                    if (isSweep) vaultDelta = -absAmount;
+                    else if (type === 'INCOME') vaultDelta = -absAmount;
+                    else if (type === 'EXPENSE') vaultDelta = absAmount;
+
+                    if (vaultDelta !== 0) {
+                        const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
+                        const revertedVaultBal = parseFloat((shopData && shopData.master_ledger_balance) || 0) + vaultDelta;
+                        await supabaseClient.from('shops').update({ master_ledger_balance: revertedVaultBal }).eq('id', currentShopId);
+                    }
+
+                    if (isSweep) {
+                        await supabaseClient.from('master_ledger_logs').delete().eq('created_at', createdAtRaw).eq('shop_id', currentShopId);
+                    }
+                }
 
                 if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
                     const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
