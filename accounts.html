@@ -27,20 +27,34 @@
         .account-item.active { background: #2C2C2C; color: white !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .account-item.active .acc-name { color: white !important; }
         .account-item.active .acc-bal { color: #f87171 !important; }
-        .acc-name { font-weight: 700; font-size: 0.95em; color: #2C2C2C; display: block; }
+        .acc-name { font-weight: 700; font-size: 0.95em; color: #2C2C2C; display: block; text-transform: uppercase; letter-spacing: 0.2px; }
         .acc-bal { font-size: 0.85em; font-weight: 800; color: #dc2626; }
+        .acc-bal.zero { color: #9ca3af; }
+        .acc-bal.credit { color: #198754; }
         .btn-custom { background-color: #2C2C2C; color: white; border: none; font-weight: 800; padding: 12px 20px; border-radius: 10px; transition: 0.2s; letter-spacing: 0.5px; }
         .btn-custom:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); color: white; }
+        .btn-custom:disabled { opacity: 0.6; transform: none; box-shadow: none; cursor: not-allowed; }
         .btn-gold { background-color: #C5A059; color: white; }
         .btn-gold:hover { background-color: #b08d4b; color: white; }
         .field-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
-        .action-btn { font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid #EAE0D5; background: #fff; transition: 0.2s; }
+        .action-btn { font-size: 0.8rem; font-weight: 700; padding: 6px 10px; border-radius: 6px; border: 1px solid #EAE0D5; background: #fff; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
         .action-btn:hover { background: #f8f9fa; border-color: #C5A059; }
         .action-btn.text-danger:hover { border-color: #dc3545; background: #fdf2f2; }
         .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; font-size: 0.95em; text-align: center; padding: 40px; flex-direction: column; }
+        .pb-name-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .pb-edit-btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+        #pb-name { text-transform: uppercase; }
+
+        /* Directory sidebar is meant to stick while scrolling on desktop/tablet.
+           sticky-md-top is not a real Bootstrap utility, so this rule is what
+           actually makes it work above the md breakpoint. */
+        .sticky-md-top { position: relative; }
+        @media (min-width: 768px) {
+            .sticky-md-top { position: sticky; top: 100px; }
+        }
+
         @media (max-width: 768px) {
             .mobile-hide { display: none !important; }
-            .sticky-md-top { position: relative !important; z-index: 1; }
             .passbook-actions { flex-direction: column; }
             .passbook-actions button { width: 100%; margin-bottom: 8px; }
         }
@@ -99,9 +113,9 @@
                         <div class="p-4 p-md-5 border-bottom bg-light text-center position-relative">
                             <div class="small fw-bold text-muted text-uppercase mb-2 tracking-wide" id="pb-type" style="letter-spacing: 1px;">Vendor Account</div>
                             
-                            <div class="d-flex justify-content-center align-items-center mb-1">
+                            <div class="pb-name-row mb-1">
                                 <h2 class="fw-bold m-0 text-dark" id="pb-name">Account Name</h2>
-                                <button class="btn btn-sm btn-light border mx-2 no-print admin-only d-none" onclick="editVendorDetails()" title="Edit Account Details">✎</button>
+                                <button class="btn btn-sm btn-light border pb-edit-btn no-print admin-only d-none" onclick="editVendorDetails()" title="Edit Account Details">✎</button>
                             </div>
                             
                             <div class="small text-muted fw-semibold mb-4" id="pb-meta">Phone: - | GST: -</div>
@@ -115,7 +129,7 @@
                         <div class="p-3 bg-white border-bottom d-flex justify-content-center gap-2 passbook-actions no-print">
                             <button class="btn btn-custom btn-gold" onclick="openAddBillModal()">+ ADD DUE BILL</button>
                             <button class="btn btn-custom" onclick="openPayModal()">RECORD PAYMENT</button>
-                            <button class="btn btn-outline-dark fw-bold px-4" style="border-radius: 10px;" onclick="promptPDFDownload()">PDF</button>
+                            <button class="btn btn-outline-dark fw-bold px-4" id="pdf-btn" style="border-radius: 10px;" onclick="promptPDFDownload()">PDF</button>
                         </div>
 
                         <div class="table-responsive">
@@ -209,12 +223,16 @@
             const { data: accounts, error } = await supabaseClient
                 .from('vendors')
                 .select('*')
-                .eq('shop_id', currentShopId)
-                .order('name', { ascending: true });
+                .eq('shop_id', currentShopId);
+
+            // Case-insensitive ascending sort by name. Doing this client-side (rather than
+            // relying solely on the DB query's .order()) guarantees correct A-Z ordering
+            // even for older records that were saved in mixed/lower case.
+            const sortByName = (a, b) => (a.name || '').trim().toLowerCase().localeCompare((b.name || '').trim().toLowerCase());
 
             if (!error && accounts) {
-                allVendors = accounts.filter(a => a.account_type === 'vendor' || !a.account_type);
-                allFinances = accounts.filter(a => a.account_type === 'finance');
+                allVendors = accounts.filter(a => a.account_type === 'vendor' || !a.account_type).sort(sortByName);
+                allFinances = accounts.filter(a => a.account_type === 'finance').sort(sortByName);
             }
             renderList();
         }
@@ -231,22 +249,28 @@
             }
 
             activeData.forEach(v => {
-                const bal = parseFloat(v.outstanding_balance || 0).toFixed(2);
+                const balNum = parseFloat(v.outstanding_balance || 0);
+                const bal = balNum.toFixed(2);
                 const isSelected = activeAccount && activeAccount.id === v.id ? 'active' : '';
+                let balClass = '';
+                if (balNum === 0) balClass = 'zero';
+                else if (balNum < 0) balClass = 'credit';
+                const balSign = balNum < 0 ? '-' : '';
                 list.innerHTML += `
-                    <div class="account-item ${isSelected}" onclick='selectVendor(${JSON.stringify(v)}, this)'>
+                    <div class="account-item ${isSelected}" onclick="selectVendor('${v.id}', this)">
                         <div class="d-flex justify-content-between align-items-center">
                             <span class="acc-name">${v.name}</span>
-                            <span class="acc-bal">₹ ${bal}</span>
+                            <span class="acc-bal ${balClass}">${balSign}₹ ${Math.abs(balNum).toFixed(2)}</span>
                         </div>
                     </div>
                 `;
             });
         }
 
-        async function selectVendor(vendor, element) {
-            const { data: refreshedVendor } = await supabaseClient.from('vendors').select('*').eq('id', vendor.id).single();
-            activeAccount = refreshedVendor || vendor;
+        async function selectVendor(vendorId, element) {
+            const { data: refreshedVendor } = await supabaseClient.from('vendors').select('*').eq('id', vendorId).single();
+            if (!refreshedVendor) return;
+            activeAccount = refreshedVendor;
 
             document.querySelectorAll('.account-item').forEach(el => el.classList.remove('active'));
             if (element) element.classList.add('active');
@@ -422,9 +446,9 @@
                 confirmButtonColor: '#2C2C2C',
                 preConfirm: () => {
                     const name = document.getElementById('swal-edit-name').value;
-                    if (!name) { Swal.showValidationMessage('Account Name is required'); return false; }
+                    if (!name || !name.trim()) { Swal.showValidationMessage('Account Name is required'); return false; }
                     return {
-                        name: name,
+                        name: name.trim().toUpperCase(),
                         phone: document.getElementById('swal-edit-phone').value || null,
                         gst: document.getElementById('swal-edit-gst').value || null,
                         newOB: parseFloat(document.getElementById('swal-edit-ob').value) || 0
@@ -451,7 +475,7 @@
 
                 Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await fetchDirectory();
-                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+                selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
             }
         }
 
@@ -482,7 +506,7 @@
 
             Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             await fetchDirectory();
-            selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+            selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
         }
 
         async function deleteBill(billId, amount) {
@@ -506,7 +530,7 @@
 
                 Swal.fire({ title: 'Deleted', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await fetchDirectory();
-                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+                selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
             }
         }
 
@@ -532,11 +556,11 @@
                 confirmButtonColor: '#2C2C2C',
                 preConfirm: () => {
                     const name = document.getElementById('swal-name').value;
-                    if (!name) { Swal.showValidationMessage('Account Name is required'); return false; }
+                    if (!name || !name.trim()) { Swal.showValidationMessage('Account Name is required'); return false; }
                     const initBal = parseFloat(document.getElementById('swal-bal').value) || 0;
                     return {
                         type: document.getElementById('swal-type').value,
-                        name: name,
+                        name: name.trim().toUpperCase(),
                         phone: document.getElementById('swal-phone').value || null,
                         gst: document.getElementById('swal-gst').value || null,
                         openingBalance: initBal,
@@ -570,7 +594,7 @@
 
             const { value: billData } = await Swal.fire({
                 title: `${titleLabel}`,
-                text: activeAccount.name,
+                text: activeAccount.name.toUpperCase(),
                 html: `
                     <input id="swal-bill-no" class="swal2-input form-control mb-3" placeholder="Reference / Invoice No.">
                     <input id="swal-bill-amt" class="swal2-input form-control mb-3 fw-bold text-danger" type="number" placeholder="Amount (₹) (Required)">
@@ -607,7 +631,7 @@
 
                 Swal.fire({ title: 'Logged!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await fetchDirectory();
-                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+                selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
             }
         }
 
@@ -616,7 +640,7 @@
 
             const { value: payData } = await Swal.fire({
                 title: `Record Payment`,
-                text: activeAccount.name,
+                text: activeAccount.name.toUpperCase(),
                 html: `
                     <input id="swal-pay-amt" class="swal2-input form-control mb-3 fw-bold text-success" type="number" placeholder="Amount (₹) (Required)">
                     <select id="swal-pay-source" class="swal2-input form-select mb-3">
@@ -624,7 +648,9 @@
                         <option value="RESERVE">Cash (Master Vault)</option>
                         <option value="UPI">Digital (Bank / UPI)</option>
                     </select>
-                    <input id="swal-pay-note" class="swal2-input form-control" placeholder="Reference Note">
+                    <input id="swal-pay-note" class="swal2-input form-control mb-3" placeholder="Reference Note">
+                    <label class="field-label text-start px-1">Payment Date</label>
+                    <input id="swal-pay-date" class="swal2-input form-control" type="date" value="${new Date().toISOString().split('T')[0]}" max="${new Date().toISOString().split('T')[0]}">
                 `,
                 focusConfirm: false,
                 showCancelButton: true,
@@ -633,15 +659,20 @@
                 preConfirm: () => {
                     const amount = parseFloat(document.getElementById('swal-pay-amt').value);
                     if (!amount || amount <= 0) { Swal.showValidationMessage('Enter a valid amount'); return false; }
+                    const date = document.getElementById('swal-pay-date').value;
+                    if (!date) { Swal.showValidationMessage('Please select a payment date'); return false; }
                     return {
                         amount: amount,
                         source: document.getElementById('swal-pay-source').value,
-                        note: document.getElementById('swal-pay-note').value || null
+                        note: document.getElementById('swal-pay-note').value || null,
+                        date: date
                     };
                 }
             });
 
             if (payData) {
+                const paymentTimestamp = getManualTimestamp(payData.date);
+
                 const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
                 let currentReserve = parseFloat(shopData.master_ledger_balance || 0);
 
@@ -657,7 +688,8 @@
                         shop_id: currentShopId,
                         transaction_type: 'VENDOR_PAYOUT',
                         reference_note: payData.note || `Paid ${activeAccount.name}`,
-                        amount: -payData.amount
+                        amount: -payData.amount,
+                        created_at: paymentTimestamp
                     }]);
                 } 
                 else {
@@ -669,7 +701,8 @@
                         amount: payData.amount,
                         vendor_id: activeAccount.id,
                         reference_note: payData.note || null,
-                        status: 'open'
+                        status: 'open',
+                        created_at: paymentTimestamp
                     }]);
                 }
 
@@ -678,18 +711,64 @@
 
                 Swal.fire({ title: 'Payment Recorded!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                 await fetchDirectory();
-                selectVendor({ id: activeAccount.id }, document.querySelector('.account-item.active'));
+                selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
             }
         }
 
-        function promptPDFDownload() {
+        function getManualTimestamp(dateStr) {
+            // Keeps the current time-of-day but applies the admin-selected date,
+            // matching the same convention used on the Dashboard and Master Ledger pages.
+            const now = new Date();
+            const localString = `${dateStr}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            return new Date(localString).toISOString();
+        }
+
+        async function promptPDFDownload() {
             if (!activeAccount) return;
+
+            const btn = document.getElementById('pdf-btn');
+            const originalLabel = btn.innerText;
+            btn.innerText = 'GENERATING...';
+            btn.disabled = true;
+
             document.querySelectorAll('.no-print').forEach(el => el.classList.add('d-none'));
             const element = document.getElementById('pdf-export-area');
-            const opt = { margin: 10, filename: `${activeAccount.name.replace(/\s+/g, '_')}_Statement.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-            html2pdf().from(element).set(opt).save().then(() => {
+
+            // The transaction table normally scrolls horizontally on narrow screens
+            // (.table-responsive). html2canvas captures the DOM as laid out, so a
+            // scrollable, clipped container produces a cut-off / blank PDF. Force it
+            // fully visible just for the capture, then restore it afterwards.
+            const tableWrap = element.querySelector('.table-responsive');
+            const prevOverflow = tableWrap ? tableWrap.style.overflowX : null;
+            if (tableWrap) tableWrap.style.overflowX = 'visible';
+
+            const opt = {
+                margin: [12, 8, 12, 8],
+                filename: `${activeAccount.name.trim().toUpperCase().replace(/\s+/g, '_')}_Statement_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: 900,
+                    windowHeight: element.scrollHeight
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'thead', 'img'] }
+            };
+
+            try {
+                await html2pdf().from(element).set(opt).save();
+            } catch (err) {
+                console.error('PDF generation failed:', err);
+                Swal.fire('PDF Error', 'Could not generate the statement PDF. Please try again.', 'error');
+            } finally {
+                if (tableWrap) tableWrap.style.overflowX = prevOverflow;
                 document.querySelectorAll('.no-print').forEach(el => el.classList.remove('d-none'));
-            });
+                btn.innerText = originalLabel;
+                btn.disabled = false;
+            }
         }
     </script>
 </body>
