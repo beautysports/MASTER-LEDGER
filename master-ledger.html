@@ -64,7 +64,7 @@
                 <div class="vault-actions z-1 d-flex gap-2">
                     <button class="btn btn-custom btn-gold shadow-sm" onclick="openAddFundsModal()">+ DEPOSIT</button>
                     <button class="btn btn-light fw-bold shadow-sm" style="border-radius: 10px; color: #2C2C2C;" onclick="openWithdrawModal()">- WITHDRAW</button>
-                    <button class="btn btn-outline-light fw-bold shadow-sm border-2" style="border-radius: 10px;" onclick="auditVaultBalance()" title="Run System Math Audit">⟳ AUDIT SYNC</button>
+                    <button class="btn btn-outline-light fw-bold shadow-sm border-2" style="border-radius: 10px;" onclick="auditVaultBalance()" title="Run System Math Audit">⟳ AUDIT CHECK</button>
                 </div>
                 <div class="position-absolute start-50 top-50 translate-middle opacity-10 pe-none" style="z-index: 0;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="currentColor" viewBox="0 0 16 16"><path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/></svg>
@@ -146,14 +146,6 @@
             }
         };
 
-        // --- SYSTEM AUDITOR FUNCTION (READ-ONLY) ---
-        // IMPORTANT: The vault balance (shops.master_ledger_balance) is now updated LIVE by every
-        // cash income/expense entry (see dashboard.html), not just by manual vault deposits in
-        // master_ledger_logs. That means "sum of master_ledger_logs" is no longer the full picture
-        // of what the balance *should* be, so this function no longer auto-overwrites the stored
-        // balance — doing so would erase live cash activity. It now only reports the manual-deposit
-        // portion for reference. If you suspect real drift, investigate the specific transaction
-        // rather than running an automatic override.
         async function auditVaultBalance() {
             if (!currentShopId) return;
 
@@ -203,7 +195,10 @@
                         rawAmount: parseFloat(log.amount),
                         createdAtRaw: log.created_at,
                         payment_method: 'null',
-                        isSweep: false
+                        isSweep: false,
+                        // FIX 1: Explicitly grab vendor_id for Vault log records
+                        vendor_id: log.vendor_id || 'null',
+                        transaction_type: log.transaction_type || 'null'
                     });
                 });
             }
@@ -336,13 +331,19 @@
                 const updatedBal = parseFloat(shopData.master_ledger_balance || 0) + signedDifference;
                 await supabaseClient.from('shops').update({ master_ledger_balance: updatedBal }).eq('id', currentShopId);
 
+                // FIX 1: Double-Entry Vendor Sync for RESERVE Edits
+                if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'VENDOR_PAYOUT') {
+                    const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
+                    if (vData) {
+                        const updatedVendorBal = parseFloat(vData.outstanding_balance || 0) + signedDifference;
+                        await supabaseClient.from('vendors').update({ outstanding_balance: updatedVendorBal }).eq('id', vendorIdStr);
+                    }
+                }
+
             } else if (source === 'DAILY') {
                 const { error: updateErr } = await supabaseClient.from('daily_transactions').update({ amount: newAbsAmount }).eq('id', id);
                 if (updateErr) return Swal.fire('Database Error', updateErr.message, 'error');
 
-                // LIVE VAULT SYNC: cash transactions affect the vault balance in real time
-                // (mirrors dashboard.html). Sweeps (legacy) and cash income add the difference;
-                // cash expense subtracts it. UPI never touches the vault.
                 if (paymentMethod === 'CASH') {
                     let vaultDelta = 0;
                     if (isSweep) vaultDelta = difference;
@@ -394,13 +395,19 @@
                 const updatedBal = parseFloat(shopData.master_ledger_balance || 0) - rawAmount;
                 await supabaseClient.from('shops').update({ master_ledger_balance: updatedBal }).eq('id', currentShopId);
 
+                // FIX 1: Double-Entry Vendor Sync for RESERVE Deletions
+                if (vendorIdStr !== 'undefined' && vendorIdStr !== 'null' && type === 'VENDOR_PAYOUT') {
+                    const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
+                    if (vData) {
+                        const restoredVendorBal = parseFloat(vData.outstanding_balance || 0) - rawAmount;
+                        await supabaseClient.from('vendors').update({ outstanding_balance: restoredVendorBal }).eq('id', vendorIdStr);
+                    }
+                }
+
             } else if (source === 'DAILY') {
                 const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', id);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
 
-                // LIVE VAULT SYNC: reverse whatever this cash transaction had contributed.
-                // Sweep and cash-income removals subtract from the vault; cash-expense
-                // removals add back. UPI never touches the vault.
                 if (paymentMethod === 'CASH') {
                     let vaultDelta = 0;
                     if (isSweep) vaultDelta = -absAmount;
@@ -527,11 +534,36 @@
             }
         }
 
+        // FIX 2: Upgraded PDF Generator to handle .mobile-hide elements seamlessly
         function downloadLedgerPDF() {
+            Swal.fire({ title: 'Generating PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            
             document.querySelectorAll('.no-print').forEach(el => el.classList.add('d-none'));
+            
+            // Temporarily strip mobile-hide classes so they render on the PDF
+            document.querySelectorAll('.mobile-hide').forEach(el => {
+                el.classList.remove('mobile-hide');
+                el.classList.add('temp-show');
+            });
+
             const element = document.getElementById('pdf-export-area');
-            const opt = { margin: 10, filename: `Master_Ledger_Statement.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-            html2pdf().from(element).set(opt).save().then(() => document.querySelectorAll('.no-print').forEach(el => el.classList.remove('d-none')));
+            const opt = { 
+                margin: 10, 
+                filename: `Master_Ledger_Statement.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, windowWidth: 1000 }, // Forced Desktop View
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
+            
+            html2pdf().from(element).set(opt).save().then(() => {
+                // Restore original layout post-render
+                document.querySelectorAll('.no-print').forEach(el => el.classList.remove('d-none'));
+                document.querySelectorAll('.temp-show').forEach(el => {
+                    el.classList.remove('temp-show');
+                    el.classList.add('mobile-hide');
+                });
+                Swal.close();
+            });
         }
     </script>
 </body>
