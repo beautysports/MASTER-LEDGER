@@ -5,38 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shop Dashboard</title>
     
-    <!-- BOOTSTRAP 5 & GOOGLE FONTS -->
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- SYNCHRONOUS SUPABASE CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         body { font-family: 'Public Sans', sans-serif; background-color: #FDFBF7; }
-        
-        /* Premium Smooth UI Enhancements */
         .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 16px; border: 1px solid rgba(197, 160, 89, 0.15); }
         .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); }
-        
         .text-gold { color: #C5A059; }
         .bg-gold-subtle { background-color: rgba(197, 160, 89, 0.1); }
-        
         .form-control, .form-select { background: #F8F9FA; border: 1px solid #EAE0D5; padding: 12px 15px; border-radius: 10px; font-weight: 500; transition: 0.2s; }
         .form-control:focus, .form-select:focus { background: #FFF; box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.15); border-color: #C5A059; outline: none; }
-        
         .field-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #888; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
-        
-        /* Toggle Buttons */
         .btn-check:checked + .btn-outline-dark { background-color: #2C2C2C; border-color: #2C2C2C; color: white; }
         .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; border-color: #0d6efd; color: white; }
-        
         .submit-btn { background-color: #2C2C2C; color: white; border: none; font-weight: 800; padding: 14px; border-radius: 10px; transition: 0.2s; letter-spacing: 1px; }
         .submit-btn:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
-        
-        /* Action Buttons */
         .action-btn { font-size: 0.8rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; border: 1px solid #EAE0D5; background: #fff; transition: 0.2s; }
         .action-btn:hover { background: #f8f9fa; border-color: #C5A059; }
         .action-btn.text-danger:hover { border-color: #dc3545; background: #fdf2f2; }
@@ -48,10 +35,9 @@
 </head>
 <body>
 
-    <!-- Dynamically injects Sidebar and Status Bar -->
+    <script> window.APP_VERSION = 'v1.8'; </script>
     <script src="navbar.js"></script>
 
-    <!-- MAIN WRAPPER -->
     <main class="container-fluid py-4 mb-5 position-relative" style="z-index: 10;">
         
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom">
@@ -64,11 +50,13 @@
                     <div class="field-label mb-1">Active Date</div>
                     <input type="date" id="active-date" class="form-control fw-bold text-dark shadow-sm border-0 cursor-pointer" onchange="onDateChanged()">
                 </div>
+                <div class="admin-only d-none mt-4">
+                    <button class="btn btn-success fw-bold shadow-sm px-4 py-2" id="transfer-btn" onclick="transferToVault()" style="border-radius: 8px;">SWEEP CASH</button>
+                </div>
             </div>
         </div>
 
         <div class="row g-3 mb-4">
-            <!-- PHYSICAL DRAWER -->
             <div class="col-12 col-xl-4">
                 <div class="card card-hover border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #1C1C1C 0%, #3A3A3A 100%); color: white; border-radius: 20px;">
                     <div class="card-body p-4 position-relative">
@@ -79,17 +67,13 @@
                         </div>
                         <h1 class="display-5 fw-bold mb-0 text-white mt-2">₹ <span id="display-drawer">0.00</span></h1>
                         <small class="text-white-50 fw-semibold mt-1 d-block">Strictly Cash In minus Cash Out</small>
-                        
                         <div class="position-absolute end-0 bottom-0 opacity-25 p-3 pe-none" style="z-index: 0;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13zM1 3.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v1H1v-1zm0 2h14v7a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-7z"/>
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="currentColor" viewBox="0 0 16 16"><path d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13zM1 3.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v1H1v-1zm0 2h14v7a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-7z"/></svg>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TOTAL SALES -->
             <div class="col-4 col-xl-2">
                 <div class="card card-hover bg-white h-100 p-3 p-md-4 border-0 shadow-sm d-flex flex-column justify-content-center">
                     <div class="field-label">Total Sales</div>
@@ -97,7 +81,6 @@
                 </div>
             </div>
             
-            <!-- TOTAL EXPENSES -->
             <div class="col-4 col-xl-2">
                 <div class="card card-hover bg-white h-100 p-3 p-md-4 border-0 shadow-sm d-flex flex-column justify-content-center">
                     <div class="field-label">Total Expense</div>
@@ -105,7 +88,6 @@
                 </div>
             </div>
 
-            <!-- GLOBAL RESERVE -->
             <div class="col-4 col-xl-4">
                 <div class="card card-hover bg-white h-100 p-3 p-md-4 border-0 shadow-sm d-flex flex-column justify-content-center" style="border-bottom: 4px solid #C5A059 !important;">
                     <div class="field-label">Global Master Vault</div>
@@ -115,7 +97,6 @@
         </div>
 
         <div class="row g-4 mb-5">
-            <!-- INCOME TERMINAL -->
             <div class="col-md-6">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100">
                     <h5 class="fw-bold text-success mb-4 text-uppercase" style="letter-spacing: 1px;">+ Record Income</h5>
@@ -123,7 +104,6 @@
                     <div class="btn-group w-100 mb-4 shadow-sm" role="group">
                         <input type="radio" class="btn-check" name="inc_method" id="inc_cash" value="CASH" checked onchange="document.getElementById('income-method').value='CASH'">
                         <label class="btn btn-outline-dark fw-bold py-2" for="inc_cash">CASH</label>
-                        
                         <input type="radio" class="btn-check" name="inc_method" id="inc_upi" value="UPI" onchange="document.getElementById('income-method').value='UPI'">
                         <label class="btn btn-outline-primary fw-bold py-2" for="inc_upi">UPI / DIGITAL</label>
                     </div>
@@ -147,12 +127,10 @@
                             <input type="text" id="income-note" class="form-control fs-6 mt-md-1" placeholder="Optional notes">
                         </div>
                     </div>
-                    
                     <button class="submit-btn w-100 mt-auto" onclick="submitIncome()">POST INCOME</button>
                 </div>
             </div>
 
-            <!-- EXPENSE TERMINAL -->
             <div class="col-md-6">
                 <div class="card card-hover bg-white border-0 shadow-sm p-4 h-100">
                     <h5 class="fw-bold text-danger mb-4 text-uppercase" style="letter-spacing: 1px;">- Record Expense</h5>
@@ -160,7 +138,6 @@
                     <div class="btn-group w-100 mb-4 shadow-sm" role="group">
                         <input type="radio" class="btn-check" name="exp_method" id="exp_cash" value="CASH" checked onchange="document.getElementById('expense-method').value='CASH'">
                         <label class="btn btn-outline-dark fw-bold py-2" for="exp_cash">CASH</label>
-                        
                         <input type="radio" class="btn-check" name="exp_method" id="exp_upi" value="UPI" onchange="document.getElementById('expense-method').value='UPI'">
                         <label class="btn btn-outline-primary fw-bold py-2" for="exp_upi">UPI / DIGITAL</label>
                     </div>
@@ -198,14 +175,11 @@
                             <input type="text" id="expense-note" class="form-control fs-6 mt-md-1" placeholder="Optional notes">
                         </div>
                     </div>
-                    
                     <button class="submit-btn w-100 mt-auto" onclick="submitExpense()">POST EXPENSE</button>
                 </div>
             </div>
-
         </div>
 
-        <!-- LEDGER TABLE -->
         <div class="card card-hover bg-white border-0 shadow-sm overflow-hidden">
             <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold m-0" style="color: #2C2C2C;">Daily Ledger Output</h5>
@@ -230,7 +204,6 @@
                 </table>
             </div>
         </div>
-
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -307,11 +280,9 @@
 
             const { start, end } = getLocalDayBounds(selectedDate);
 
-            // Fetch Master Vault Balance
             const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
             document.getElementById('display-vault').innerText = parseFloat(shopData?.master_ledger_balance || 0).toFixed(2);
 
-            // Fetch Daily Transactions
             const { data: txns, error } = await supabaseClient.from('daily_transactions')
                 .select(`*, vendors ( name ), staff ( name )`)
                 .eq('shop_id', currentShopId)
@@ -377,15 +348,11 @@
                         ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">UPI</span>` 
                         : `<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">CASH</span>`;
 
-                    let safeVendorId = txn.vendor_id ? txn.vendor_id : 'null';
-                    let safeCategory = txn.category ? txn.category : 'none';
-
-                    // Passing isSweep and the exact created_at timestamp to the edit/delete functions
                     let adminEditBtn = isAdmin ? `
                         <td class="text-center admin-only align-middle">
                             <div class="d-flex justify-content-center gap-2">
-                                <button class="action-btn text-dark" onclick="editTransaction('${txn.id}', ${txn.amt}, '${safeVendorId}', '${txn.transaction_type}', '${safeCategory}', ${txn.isSweep}, '${txn.created_at}', '${txn.payment_method}')" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                                <button class="action-btn text-danger" onclick="deleteTransaction('${txn.id}', ${txn.amt}, '${safeVendorId}', '${txn.transaction_type}', '${safeCategory}', ${txn.isSweep}, '${txn.created_at}', '${txn.payment_method}')" title="Delete"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                                <button class="action-btn text-dark" onclick="editTransaction('${txn.id}', ${txn.amt}, ${txn.isSweep}, '${txn.created_at}')" title="Edit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                                <button class="action-btn text-danger" onclick="deleteTransaction('${txn.id}', ${txn.isSweep}, '${txn.created_at}')" title="Delete"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                             </div>
                         </td>
                     ` : '';
@@ -446,13 +413,6 @@
             }]);
 
             if (error) return Swal.fire('Error', error.message, 'error');
-
-            // LIVE VAULT SYNC: cash income credits the vault balance immediately
-            if (method === 'CASH') {
-                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-                const newVaultBal = parseFloat((shopData && shopData.master_ledger_balance) || 0) + amount;
-                await supabaseClient.from('shops').update({ master_ledger_balance: newVaultBal }).eq('id', currentShopId);
-            }
             
             document.getElementById('income-amount').value = '';
             document.getElementById('income-note').value = '';
@@ -496,21 +456,6 @@
             }]);
 
             if (insertErr) return Swal.fire('Ledger Error', insertErr.message, 'error');
-
-            if (vendor_id) {
-                const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendor_id).single();
-                if (vData) {
-                    const newBal = parseFloat(vData.outstanding_balance || 0) - amount;
-                    await supabaseClient.from('vendors').update({ outstanding_balance: newBal }).eq('id', vendor_id);
-                }
-            }
-
-            // LIVE VAULT SYNC: cash expense debits the vault balance immediately
-            if (method === 'CASH') {
-                const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-                const newVaultBal = parseFloat((shopData && shopData.master_ledger_balance) || 0) - amount;
-                await supabaseClient.from('shops').update({ master_ledger_balance: newVaultBal }).eq('id', currentShopId);
-            }
             
             document.getElementById('expense-amount').value = '';
             document.getElementById('expense-note').value = '';
@@ -518,7 +463,7 @@
             await loadDashboardData();
         }
 
-        async function editTransaction(txnId, currentAmount, vendorIdStr, type, category, isSweep, createdAt, paymentMethod) {
+        async function editTransaction(txnId, currentAmount, isSweep, createdAtRaw) {
             const { value: newAmountStr } = await Swal.fire({
                 title: 'Modify Transaction Amount',
                 input: 'number',
@@ -531,51 +476,23 @@
             if (!newAmountStr) return; 
             const newAmount = parseFloat(newAmountStr);
             if (isNaN(newAmount) || newAmount <= 0) return Swal.fire('Error', 'Invalid amount.', 'error');
-            
-            const difference = newAmount - currentAmount;
-            if (difference === 0) return; 
+            if (newAmount - currentAmount === 0) return; 
 
-            // Update the core transaction
             const { error } = await supabaseClient.from('daily_transactions').update({ amount: newAmount }).eq('id', txnId);
             if (error) return Swal.fire('Database Error', error.message, 'error');
 
-            // LIVE VAULT SYNC: cash transactions affect the vault balance in real time.
-            // Sweeps (legacy) always add the difference to the vault. Regular cash income
-            // adds the difference; regular cash expense subtracts it. UPI never touches the vault.
-            if (paymentMethod === 'CASH') {
-                let vaultDelta = 0;
-                if (isSweep) vaultDelta = difference;
-                else if (type === 'INCOME') vaultDelta = difference;
-                else if (type === 'EXPENSE') vaultDelta = -difference;
-
-                if (vaultDelta !== 0) {
-                    const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-                    const updatedVaultBal = parseFloat((shopData && shopData.master_ledger_balance) || 0) + vaultDelta;
-                    await supabaseClient.from('shops').update({ master_ledger_balance: updatedVaultBal }).eq('id', currentShopId);
-                }
-
-                if (isSweep) {
-                    await supabaseClient.from('master_ledger_logs').update({ amount: newAmount }).eq('created_at', createdAt).eq('shop_id', currentShopId);
-                }
-            }
-
-            // DOUBLE ENTRY: Sync Vendor Ledgers if a payment was edited
-            if (vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
-                const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
-                if (vData) {
-                    const updatedBal = parseFloat(vData.outstanding_balance || 0) - difference;
-                    await supabaseClient.from('vendors').update({ outstanding_balance: updatedBal }).eq('id', vendorIdStr);
-                }
+            if (isSweep) {
+                await supabaseClient.from('master_ledger_logs').update({ amount: newAmount }).eq('created_at', createdAtRaw).eq('shop_id', currentShopId);
             }
 
             Swal.fire({ title: 'Updated!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
             await loadDashboardData();
         }
 
-        async function deleteTransaction(txnId, amount, vendorIdStr, type, category, isSweep, createdAt, paymentMethod) {
+        async function deleteTransaction(txnId, isSweep, createdAtRaw) {
             const result = await Swal.fire({
                 title: 'Wipe Record?',
-                text: isSweep ? "This will return the cash to the drawer and deduct it from the Master Vault." : (paymentMethod === 'CASH' ? "This will also reverse the amount from the Master Vault." : "Associated balances will be reversed."),
+                text: isSweep ? "This will return the cash to the drawer and deduct it from the Master Vault." : "Associated balances will be reversed automatically.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
@@ -584,36 +501,11 @@
             });
 
             if (result.isConfirmed) {
-                // Delete the core transaction
                 const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', txnId);
                 if (delError) return Swal.fire('Error', delError.message, 'error');
 
-                // LIVE VAULT SYNC: reverse whatever this cash transaction had contributed to the vault.
-                // Sweep and cash-income removals subtract from the vault; cash-expense removals add back.
-                if (paymentMethod === 'CASH') {
-                    let vaultDelta = 0;
-                    if (isSweep) vaultDelta = -amount;
-                    else if (type === 'INCOME') vaultDelta = -amount;
-                    else if (type === 'EXPENSE') vaultDelta = amount;
-
-                    if (vaultDelta !== 0) {
-                        const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
-                        const revertedVaultBal = parseFloat((shopData && shopData.master_ledger_balance) || 0) + vaultDelta;
-                        await supabaseClient.from('shops').update({ master_ledger_balance: revertedVaultBal }).eq('id', currentShopId);
-                    }
-
-                    if (isSweep) {
-                        await supabaseClient.from('master_ledger_logs').delete().eq('created_at', createdAt).eq('shop_id', currentShopId);
-                    }
-                }
-
-                // DOUBLE ENTRY: Refund Vendor Balance if applicable
-                if (vendorIdStr !== 'null' && type === 'EXPENSE' && (category === 'vendor' || category === 'finance')) {
-                    const { data: vData } = await supabaseClient.from('vendors').select('outstanding_balance').eq('id', vendorIdStr).single();
-                    if (vData) {
-                        const restoredBal = parseFloat(vData.outstanding_balance || 0) + amount;
-                        await supabaseClient.from('vendors').update({ outstanding_balance: restoredBal }).eq('id', vendorIdStr);
-                    }
+                if (isSweep) {
+                    await supabaseClient.from('master_ledger_logs').delete().eq('created_at', createdAtRaw).eq('shop_id', currentShopId);
                 }
                 
                 Swal.fire({ title: 'Deleted', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
@@ -621,12 +513,82 @@
             }
         }
 
-        // NOTE: Manual "Sweep Cash to Vault" has been removed. The vault balance
-        // (shops.master_ledger_balance) is now updated live, transaction by transaction,
-        // in submitIncome(), submitExpense(), editTransaction(), and deleteTransaction() above.
-        // Old historical rows with reference_note 'Transferred to Master Vault' are preserved
-        // as-is and are still special-cased (isSweep) so editing/deleting them doesn't
-        // double-count against the new live-updating balance.
+        async function transferToVault() {
+            const btn = document.getElementById('transfer-btn');
+            const selectedDate = document.getElementById('active-date').value;
+            
+            if (!selectedDate) return Swal.fire('Error', 'Please select a date first.', 'error');
+
+            btn.innerText = 'SWEEPING...';
+            btn.disabled = true;
+
+            try {
+                const { start, end } = getLocalDayBounds(selectedDate);
+                const { data: txns, error: fetchErr } = await supabaseClient.from('daily_transactions')
+                    .select('amount, transaction_type, payment_method')
+                    .eq('shop_id', currentShopId)
+                    .gte('created_at', start)
+                    .lte('created_at', end);
+
+                if (fetchErr) throw fetchErr;
+
+                let dbVerifiedCash = 0;
+                if (txns) {
+                    txns.forEach(txn => {
+                        if (txn.payment_method === 'CASH') {
+                            if (txn.transaction_type === 'INCOME') dbVerifiedCash += parseFloat(txn.amount);
+                            if (txn.transaction_type === 'EXPENSE') dbVerifiedCash -= parseFloat(txn.amount);
+                        }
+                    });
+                }
+
+                if (dbVerifiedCash <= 0) {
+                    Swal.fire('Drawer Empty', 'There is no verified physical cash to sweep for this date.', 'warning');
+                    return; 
+                }
+
+                const { value: confirmTransfer } = await Swal.fire({
+                    title: 'Close Day & Sweep',
+                    html: `Sweep verified <strong>₹${dbVerifiedCash.toFixed(2)}</strong> from the dashboard drawer into the Master Vault?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#198754',
+                    cancelButtonColor: '#2C2C2C',
+                    confirmButtonText: 'Yes, Sweep to Vault'
+                });
+
+                if (confirmTransfer) {
+                    const submissionTime = getSubmissionTimestamp();
+
+                    await supabaseClient.from('master_ledger_logs').insert([{
+                        shop_id: currentShopId,
+                        transaction_type: 'DEPOSIT',
+                        reference_note: `Daily Cash Closing Transfer (${selectedDate})`,
+                        amount: dbVerifiedCash,
+                        created_at: submissionTime
+                    }]);
+
+                    await supabaseClient.from('daily_transactions').insert([{
+                        shop_id: currentShopId, 
+                        transaction_type: 'EXPENSE', 
+                        category: 'OTHER', 
+                        payment_method: 'CASH', 
+                        amount: dbVerifiedCash, 
+                        reference_note: 'Transferred to Master Vault',
+                        status: 'closed',
+                        created_at: submissionTime
+                    }]);
+
+                    Swal.fire('Vault Updated', `Successfully swept ₹${dbVerifiedCash.toFixed(2)}.`, 'success');
+                    await loadDashboardData();
+                }
+            } catch (err) {
+                Swal.fire('Database Error', err.message, 'error');
+            } finally {
+                btn.innerText = 'SWEEP CASH';
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
