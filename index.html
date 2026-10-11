@@ -3,259 +3,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Ledger — Sign In</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C5A059' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'%3E%3C/path%3E%3Cpolyline points='9 22 9 12 15 12 15 22'%3E%3C/polyline%3E%3C/svg%3E">
-
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- SYNCHRONOUS CDN LOADING - Fixes all crashes -->
+    <title>Enterprise System Login</title>
+    
+    <!-- Enterprise Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- SYNCHRONOUS CDN LOADING -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
 
     <style>
         :root {
-            --ink: #2C2C2C;
-            --ink-soft: #6b6b6b;
-            --gold: #C5A059;
-            --gold-light: rgba(197, 160, 89, 0.15);
-            --cream: #FDFBF7;
-            --line: #EAE0D5;
+            --ent-bg: #f3f4f6;
+            --ent-surface: #ffffff;
+            --ent-border: #d1d5db;
+            --ent-border-focus: #9ca3af;
+            --ent-ink: #0f172a;
+            --ent-muted: #64748b;
+            --ent-accent: #0f172a;
+            --ent-danger: #dc2626;
+            --radius: 6px;
         }
 
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Public Sans', -apple-system, sans-serif; color: var(--ink); height: 100vh; overflow: hidden; }
+        body {
+            margin: 0;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--ent-bg);
+            color: var(--ent-ink);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
         .hidden { display: none !important; }
 
-        /* ---------- SPLIT SCREEN LAYOUT ---------- */
-        .auth-shell { display: flex; height: 100vh; width: 100vw; }
-
-        /* ---------- LEFT: BRAND PANEL ---------- */
-        .brand-panel {
-            flex: 1.1; position: relative; overflow: hidden;
-            background: linear-gradient(145deg, #1C1C1C 0%, #353535 100%);
-            color: #fff; display: flex; flex-direction: column; justify-content: space-between;
-            padding: 56px 60px;
+        /* --- Enterprise Flat Card --- */
+        .login-card {
+            background: var(--ent-surface);
+            padding: 48px 40px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--ent-border);
+            width: 100%;
+            max-width: 420px;
+            box-sizing: border-box;
+            
+            /* Sharp Entrance Animation */
+            opacity: 0;
+            transform: translateY(10px);
+            animation: cardEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .brand-mark { display: flex; align-items: center; gap: 12px; }
-        .brand-mark-icon {
-            width: 42px; height: 42px; border-radius: 12px; background: var(--gold-light);
-            display: flex; align-items: center; justify-content: center; border: 1px solid rgba(197,160,89,0.3);
-        }
-        .brand-mark-name { font-weight: 800; font-size: 1.15rem; letter-spacing: 0.3px; }
-        .brand-mark-sub { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); margin-top: 1px; }
-
-        .brand-headline { font-size: 2.1rem; font-weight: 800; line-height: 1.25; letter-spacing: -0.5px; max-width: 460px; margin: 0; }
-        .brand-headline span { color: var(--gold); }
-        .brand-copy { color: rgba(255,255,255,0.55); font-size: 0.95rem; font-weight: 500; margin-top: 14px; max-width: 420px; line-height: 1.6; }
-
-        .feature-list { display: flex; flex-direction: column; gap: 18px; margin-top: 36px; }
-        .feature-row { display: flex; align-items: flex-start; gap: 14px; }
-        .feature-icon {
-            width: 32px; height: 32px; border-radius: 9px; background: rgba(197,160,89,0.12); color: var(--gold);
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
-        }
-        .feature-text-title { font-weight: 700; font-size: 0.92rem; color: #fff; }
-        .feature-text-sub { font-size: 0.8rem; color: rgba(255,255,255,0.45); margin-top: 2px; }
-
-        .brand-footer { font-size: 0.75rem; color: rgba(255,255,255,0.35); font-weight: 600; letter-spacing: 0.3px; }
-
-        .brand-decor {
-            position: absolute; right: -60px; bottom: -60px; opacity: 0.06; pointer-events: none;
+        
+        @keyframes cardEnter {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
-        /* ---------- RIGHT: FORM PANEL ---------- */
-        .form-panel {
-            flex: 1; background: var(--cream); display: flex; align-items: center; justify-content: center;
-            padding: 24px; overflow-y: auto;
+        /* --- Branding --- */
+        .brand-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .brand-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin: 0 0 4px 0;
+            color: var(--ent-ink);
+            text-transform: uppercase;
+        }
+        .brand-subtitle {
+            font-size: 0.85rem;
+            color: var(--ent-muted);
+            margin: 0;
+            font-weight: 500;
         }
 
-        .login-card { width: 100%; max-width: 380px; transform: translateY(16px); opacity: 0; animation: slideUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { to { transform: translateY(0); opacity: 1; } }
-
-        .mobile-brand { display: none; }
-
-        .form-title { font-size: 1.5rem; font-weight: 800; margin: 0 0 4px; letter-spacing: -0.3px; }
-        .form-subtitle { font-size: 0.88rem; color: var(--ink-soft); font-weight: 500; margin-bottom: 32px; }
-
-        .input-group { margin-bottom: 18px; text-align: left; }
-        label { font-weight: 800; font-size: 0.72rem; display: block; margin-bottom: 7px; color: #888; text-transform: uppercase; letter-spacing: 0.6px; }
-
-        input[type="email"], input[type="password"], input[type="text"] {
-            width: 100%; padding: 13px 15px; border-radius: 10px; border: 1px solid var(--line);
-            background-color: #F8F9FA; font-size: 0.95em; font-family: inherit; font-weight: 500;
-            transition: all 0.2s ease; outline: none; color: var(--ink);
+        /* --- Strict Form Elements --- */
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
         }
-        input:focus { border-color: var(--gold); background-color: #fff; box-shadow: 0 0 0 4px var(--gold-light); }
-
-        .password-wrap { position: relative; }
-        .password-toggle {
-            position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
-            background: none; border: none; padding: 4px; cursor: pointer; color: #9a9a9a;
-            display: flex; align-items: center; width: auto; box-shadow: none;
+        label {
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            display: block;
+            margin-bottom: 8px;
+            color: var(--ent-muted);
         }
-        .password-toggle:hover { color: var(--ink); background: none; transform: translateY(-50%); }
-
-        .row-between { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
-        .remember-row { display: flex; align-items: center; gap: 8px; }
-        .remember-row input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--gold); }
-        .remember-row label { margin: 0; text-transform: none; font-size: 0.85em; font-weight: 600; cursor: pointer; letter-spacing: 0; color: var(--ink-soft); }
-        .forgot-link { font-size: 0.82rem; font-weight: 700; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 1px; }
-        .forgot-link:hover { color: var(--gold); border-color: var(--gold); }
-
-        button[type="submit"] {
-            background-color: var(--ink); color: #ffffff; border: none; font-weight: 800; padding: 15px;
-            border-radius: 10px; width: 100%; font-size: 0.95em; cursor: pointer; transition: all 0.2s ease;
-            box-shadow: 0 4px 10px rgba(44,44,44,0.18); letter-spacing: 0.3px;
+        input[type="email"], 
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            box-sizing: border-box;
+            border-radius: 4px;
+            border: 1px solid var(--ent-border);
+            background-color: var(--ent-surface);
+            font-size: 0.95rem;
+            font-weight: 500;
+            font-family: inherit;
+            color: var(--ent-ink);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            outline: none;
         }
-        button[type="submit"]:hover { background-color: #1a1a1a; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(44,44,44,0.22); }
-        button[type="submit"]:disabled { background-color: #c7c7c7; cursor: not-allowed; transform: none; box-shadow: none; }
-
-        .security-note {
-            display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 22px;
-            font-size: 0.74rem; color: #9a9a9a; font-weight: 600;
+        input::placeholder {
+            color: #9ca3af;
+            font-weight: 400;
+        }
+        input:focus {
+            border-color: var(--ent-accent);
+            box-shadow: 0 0 0 1px var(--ent-accent);
         }
 
+        /* --- Checkbox Row --- */
+        .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+        .remember-row input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: var(--ent-accent);
+            margin: 0;
+        }
+        .remember-row label {
+            margin: 0;
+            text-transform: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--ent-ink);
+            letter-spacing: 0;
+            cursor: pointer;
+        }
+
+        /* --- Button --- */
+        .btn-submit {
+            background-color: var(--ent-accent);
+            color: #ffffff;
+            border: 1px solid var(--ent-accent);
+            font-weight: 700;
+            padding: 12px;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .btn-submit:hover {
+            background-color: #000000;
+        }
+        .btn-submit:disabled {
+            background-color: var(--ent-border);
+            border-color: var(--ent-border);
+            color: #ffffff;
+            cursor: not-allowed;
+        }
+
+        /* --- Error Messaging --- */
         .error-msg {
-            color: #dc2626; font-size: 0.83em; margin-bottom: 18px; text-align: left; font-weight: 600;
-            display: none; align-items: flex-start; gap: 8px; padding: 12px 14px; background: #fef2f2;
-            border: 1px solid #fecaca; border-radius: 10px; line-height: 1.4;
+            color: var(--ent-danger);
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+            padding: 10px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 4px;
         }
 
-        /* ---------- PAGE LOADER ---------- */
+        /* --- Loader --- */
         .page-loader {
-            display: flex; align-items: center; justify-content: center; height: 100vh; width: 100vw;
-            position: fixed; top: 0; left: 0; background: var(--ink); z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: var(--ent-bg);
+            z-index: 9999;
         }
-        .spinner { border: 3px solid rgba(197,160,89,0.2); border-top: 3px solid var(--gold); border-radius: 50%; width: 34px; height: 34px; animation: spin 0.9s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner {
+            border: 3px solid var(--ent-border);
+            border-top: 3px solid var(--ent-accent);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-        /* ---------- RESPONSIVE ---------- */
-        @media (max-width: 991.98px) {
-            .brand-panel { display: none; }
-            .mobile-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 28px; }
-            .mobile-brand-icon { width: 38px; height: 38px; border-radius: 11px; background: var(--ink); display: flex; align-items: center; justify-content: center; }
-            .mobile-brand-name { font-weight: 800; font-size: 1.05rem; color: var(--ink); }
-            .form-panel { padding: 20px; }
-        }
-        @media (max-width: 420px) {
-            .login-card { max-width: 100%; }
+        .footer-note {
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--ent-muted);
+            margin-top: 32px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
     </style>
 </head>
 <body>
 
+    <!-- Initial App Load Spinner -->
     <div id="page-loader" class="page-loader">
         <div class="spinner"></div>
     </div>
 
-    <div class="auth-shell hidden" id="login-ui">
-
-        <!-- LEFT: BRAND PANEL (hidden on mobile) -->
-        <div class="brand-panel">
-            <div>
-                <div class="brand-mark">
-                    <div class="brand-mark-icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C5A059" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    </div>
-                    <div>
-                        <div class="brand-mark-name">MASTER LEDGER</div>
-                        <div class="brand-mark-sub">Enterprise Workspace</div>
-                    </div>
-                </div>
-
-                <h1 class="brand-headline" style="margin-top: 60px;">Every rupee, <span>reconciled</span>. Every shop, in one view.</h1>
-                <p class="brand-copy">Real-time cash flow, vendor ledgers, and vault balances — built for multi-location retail operations that can't afford to guess.</p>
-
-                <div class="feature-list">
-                    <div class="feature-row">
-                        <div class="feature-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        </div>
-                        <div>
-                            <div class="feature-text-title">Live cash &amp; vault sync</div>
-                            <div class="feature-text-sub">Balances update instantly, backed by database-level consistency.</div>
-                        </div>
-                    </div>
-                    <div class="feature-row">
-                        <div class="feature-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        </div>
-                        <div>
-                            <div class="feature-text-title">Role-based shop access</div>
-                            <div class="feature-text-sub">Admins and staff see exactly what they should, nothing more.</div>
-                        </div>
-                    </div>
-                    <div class="feature-row">
-                        <div class="feature-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                        </div>
-                        <div>
-                            <div class="feature-text-title">Audit-ready statements</div>
-                            <div class="feature-text-sub">Export clean, vendor-ready PDFs in a click.</div>
-                        </div>
-                    </div>
-                </div>
+    <!-- Login UI -->
+    <div class="login-card hidden" id="login-ui">
+        <div class="brand-container">
+            <div class="brand-icon-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l1.5-5h15L21 9"></path>
+                    <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"></path>
+                    <path d="M5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"></path>
+                    <path d="M10 15h4v7h-4z"></path>
+                </svg>
             </div>
-
-            <div class="brand-footer">© <span id="footer-year"></span> Master Ledger. All data encrypted in transit.</div>
-
-            <div class="brand-decor">
-                <svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" fill="currentColor" viewBox="0 0 16 16"><path d="M4 10.781c.148 1.667 1.513 2.85 3.591 3.003V15h1.043v-1.216c2.27-.179 3.678-1.438 3.678-3.3 0-1.59-.947-2.51-2.956-3.028l-.722-.187V3.467c1.122.11 1.879.714 2.07 1.616h1.47c-.166-1.6-1.54-2.748-3.54-2.875V1H7.591v1.233c-1.939.23-3.27 1.472-3.27 3.156 0 1.454.966 2.483 2.661 2.917l.61.162v4.031c-1.149-.17-1.94-.8-2.131-1.718H4zm3.391-3.836c-1.043-.263-1.6-.825-1.6-1.616 0-.944.704-1.641 1.8-1.828v3.495l-.2-.05zm1.591 1.872c1.287.323 1.852.859 1.852 1.769 0 1.097-.826 1.828-2.2 1.939V8.73l.348.086z"/></svg>
-            </div>
+            <h1 class="brand-title">System Access</h1>
+            <p class="brand-subtitle">Authenticate to your workspace</p>
         </div>
-
-        <!-- RIGHT: FORM PANEL -->
-        <div class="form-panel">
-            <div class="login-card">
-
-                <div class="mobile-brand">
-                    <div class="mobile-brand-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C5A059" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    </div>
-                    <div class="mobile-brand-name">MASTER LEDGER</div>
-                </div>
-
-                <h2 class="form-title">Welcome back</h2>
-                <p class="form-subtitle">Sign in to access your workspace</p>
-
-                <form onsubmit="handleLogin(event)">
-                    <div class="input-group">
-                        <label>Email Address</label>
-                        <input type="email" id="email" placeholder="you@yourshop.com" autocomplete="email">
-                    </div>
-                    <div class="input-group">
-                        <label>Password</label>
-                        <div class="password-wrap">
-                            <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
-                            <button type="button" class="password-toggle" onclick="togglePasswordVisibility()" id="pw-toggle-btn" aria-label="Show password">
-                                <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="row-between">
-                        <div class="remember-row">
-                            <input type="checkbox" id="remember-me">
-                            <label for="remember-me">Remember my email</label>
-                        </div>
-                    </div>
-
-                    <div id="error-box" class="error-msg"></div>
-
-                    <button type="submit" id="login-btn">Sign In</button>
-
-                    <div class="security-note">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        Secured by encrypted authentication
-                    </div>
-                </form>
+        
+        <form onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <label for="email">Account Email</label>
+                <input type="email" id="email" placeholder="staff@shop.com" autocomplete="email" required>
             </div>
-        </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
+            </div>
+            <div class="remember-row">
+                <input type="checkbox" id="remember-me">
+                <label for="remember-me">Remember my email</label>
+            </div>
+            
+            <div id="error-box" class="error-msg"></div>
+            
+            <button type="submit" id="login-btn" class="btn-submit">Authenticate</button>
+        </form>
+
+        <div class="footer-note">Enterprise Ledger &bull; v1.9.2</div>
     </div>
 
     <script>
-        document.getElementById('footer-year').innerText = new Date().getFullYear();
-
         window.onload = async () => {
             const savedEmail = localStorage.getItem('shop_saved_email');
             if (savedEmail) {
@@ -263,30 +286,17 @@
                 document.getElementById('remember-me').checked = true;
             }
 
-            // INSTANT EXECUTION: No more waiting in a while loop
+            // Sync Check: if already logged in, bypass login screen immediately
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
                 window.location.replace('dashboard.html');
                 return; 
             }
 
+            // Reveal Login UI
             document.getElementById('page-loader').classList.add('hidden');
             document.getElementById('login-ui').classList.remove('hidden');
         };
-
-        function togglePasswordVisibility() {
-            const pwInput = document.getElementById('password');
-            const icon = document.getElementById('eye-icon');
-            const btn = document.getElementById('pw-toggle-btn');
-            const isHidden = pwInput.type === 'password';
-
-            pwInput.type = isHidden ? 'text' : 'password';
-            btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
-
-            icon.innerHTML = isHidden
-                ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'
-                : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-        }
 
         async function handleLogin(e) {
             e.preventDefault(); 
@@ -297,12 +307,12 @@
             const errorBox = document.getElementById('error-box');
 
             if (!email || !password) {
-                errorBox.innerText = "Please enter both email and password.";
-                errorBox.style.display = 'flex';
+                errorBox.innerText = "Please enter both credentials.";
+                errorBox.style.display = 'block';
                 return;
             }
 
-            btn.innerText = "Authenticating...";
+            btn.innerText = "Verifying...";
             btn.disabled = true;
             errorBox.style.display = 'none';
 
@@ -313,8 +323,8 @@
 
             if (error) {
                 errorBox.innerText = error.message;
-                errorBox.style.display = 'flex';
-                btn.innerText = "Sign In";
+                errorBox.style.display = 'block';
+                btn.innerText = "Authenticate";
                 btn.disabled = false;
             } else {
                 if (rememberMe) {
