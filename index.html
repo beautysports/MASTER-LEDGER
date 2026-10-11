@@ -3,203 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise System Login</title>
+    <title>Sign In</title>
     
-    <!-- Enterprise Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- SYNCHRONOUS CDN LOADING -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
 
     <style>
         :root {
-            --ent-bg: #f3f4f6;
-            --ent-surface: #ffffff;
-            --ent-border: #d1d5db;
-            --ent-border-focus: #9ca3af;
-            --ent-ink: #0f172a;
-            --ent-muted: #64748b;
-            --ent-accent: #0f172a;
-            --ent-danger: #dc2626;
-            --radius: 6px;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --border-focus: #94a3b8;
+            --ink: #0f172a;
+            --ink-muted: #64748b;
+            --accent: #0f172a;
+            --danger: #ef4444;
+            --radius: 8px;
         }
 
         body {
             margin: 0;
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--ent-bg);
-            color: var(--ent-ink);
+            background-color: var(--bg);
+            color: var(--ink);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
         .hidden { display: none !important; }
 
-        /* --- Enterprise Flat Card --- */
+        /* --- Standard Enterprise Card --- */
         .login-card {
-            background: var(--ent-surface);
-            padding: 48px 40px;
+            background: var(--surface);
+            padding: 40px;
             border-radius: var(--radius);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            border: 1px solid var(--ent-border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
             width: 100%;
-            max-width: 420px;
+            max-width: 400px;
             box-sizing: border-box;
             
-            /* Sharp Entrance Animation */
+            /* Smooth, non-bouncy animation */
             opacity: 0;
-            transform: translateY(10px);
-            animation: cardEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transform: translateY(12px);
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         
-        @keyframes cardEnter {
-            0% { opacity: 0; transform: translateY(10px); }
-            100% { opacity: 1; transform: translateY(0); }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- Branding --- */
-        .brand-container {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        .brand-icon-box {
-            width: 48px;
-            height: 48px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            margin-bottom: 20px;
-        }
-        .brand-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin: 0 0 4px 0;
-            color: var(--ent-ink);
-            text-transform: uppercase;
-        }
-        .brand-subtitle {
-            font-size: 0.85rem;
-            color: var(--ent-muted);
-            margin: 0;
-            font-weight: 500;
-        }
-
-        /* --- Strict Form Elements --- */
-        .input-group {
-            margin-bottom: 20px;
+        /* --- Header --- */
+        .card-header {
+            margin-bottom: 32px;
             text-align: left;
         }
-        label {
-            font-weight: 700;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            display: block;
-            margin-bottom: 8px;
-            color: var(--ent-muted);
+        
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 20px;
+            color: var(--ink);
         }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 0;
+            color: var(--ink);
+        }
+
+        /* --- Form Elements --- */
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: 8px;
+        }
+        
         input[type="email"], 
         input[type="password"] {
             width: 100%;
-            padding: 12px 14px;
+            padding: 10px 12px;
             box-sizing: border-box;
-            border-radius: 4px;
-            border: 1px solid var(--ent-border);
-            background-color: var(--ent-surface);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--surface);
             font-size: 0.95rem;
-            font-weight: 500;
             font-family: inherit;
-            color: var(--ent-ink);
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            color: var(--ink);
+            transition: all 0.2s ease;
             outline: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
-        input::placeholder {
-            color: #9ca3af;
-            font-weight: 400;
-        }
+        
+        input::placeholder { color: #a1a1aa; }
+        
         input:focus {
-            border-color: var(--ent-accent);
-            box-shadow: 0 0 0 1px var(--ent-accent);
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 1px var(--border-focus);
         }
 
-        /* --- Checkbox Row --- */
+        /* --- Remember Me --- */
         .remember-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
+        
         .remember-row input[type="checkbox"] {
             width: 14px;
             height: 14px;
-            cursor: pointer;
-            accent-color: var(--ent-accent);
             margin: 0;
+            cursor: pointer;
+            accent-color: var(--accent);
         }
+        
         .remember-row label {
             margin: 0;
-            text-transform: none;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--ent-ink);
-            letter-spacing: 0;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--ink-muted);
             cursor: pointer;
         }
 
         /* --- Button --- */
         .btn-submit {
-            background-color: var(--ent-accent);
+            background-color: var(--accent);
             color: #ffffff;
-            border: 1px solid var(--ent-accent);
-            font-weight: 700;
-            padding: 12px;
-            border-radius: 4px;
+            border: none;
+            font-weight: 600;
+            padding: 10px;
+            border-radius: 6px;
             width: 100%;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: background-color 0.15s ease;
+            transition: background-color 0.2s ease;
         }
+        
         .btn-submit:hover {
             background-color: #000000;
         }
+        
         .btn-submit:disabled {
-            background-color: var(--ent-border);
-            border-color: var(--ent-border);
-            color: #ffffff;
+            background-color: var(--ink-muted);
             cursor: not-allowed;
         }
 
-        /* --- Error Messaging --- */
+        /* --- Error Box --- */
         .error-msg {
-            color: var(--ent-danger);
-            font-size: 0.8rem;
+            color: var(--danger);
+            font-size: 0.85rem;
             margin-bottom: 20px;
-            text-align: center;
-            font-weight: 600;
+            font-weight: 500;
             display: none;
-            padding: 10px;
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            border-radius: 4px;
         }
 
-        /* --- Loader --- */
+        /* --- Global Loader --- */
         .page-loader {
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
@@ -207,134 +182,79 @@
             position: fixed;
             top: 0;
             left: 0;
-            background: var(--ent-bg);
+            background: var(--bg);
             z-index: 9999;
         }
+        
         .spinner {
-            border: 3px solid var(--ent-border);
-            border-top: 3px solid var(--ent-accent);
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--accent);
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            animation: spin 0.8s linear infinite;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.6s linear infinite;
         }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        .footer-note {
-            text-align: center;
-            font-size: 0.7rem;
-            color: var(--ent-muted);
-            margin-top: 32px;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
+        /* --- Footer --- */
+        .sys-footer {
+            margin-top: 24px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--ink-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Initial App Load Spinner -->
     <div id="page-loader" class="page-loader">
         <div class="spinner"></div>
     </div>
 
-    <!-- Login UI -->
     <div class="login-card hidden" id="login-ui">
-        <div class="brand-container">
-            <div class="brand-icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l1.5-5h15L21 9"></path>
-                    <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"></path>
-                    <path d="M5 12v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"></path>
-                    <path d="M10 15h4v7h-4z"></path>
-                </svg>
-            </div>
-            <h1 class="brand-title">System Access</h1>
-            <p class="brand-subtitle">Authenticate to your workspace</p>
+        <div class="card-header">
+            <svg class="brand-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <h1 class="card-title">Sign in</h1>
         </div>
         
         <form onsubmit="handleLogin(event)">
             <div class="input-group">
-                <label for="email">Account Email</label>
-                <input type="email" id="email" placeholder="staff@shop.com" autocomplete="email" required>
+                <label for="email">Email address</label>
+                <input type="email" id="email" autocomplete="email" required>
             </div>
+            
             <div class="input-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
+                <input type="password" id="password" autocomplete="current-password" required>
             </div>
+            
             <div class="remember-row">
                 <input type="checkbox" id="remember-me">
-                <label for="remember-me">Remember my email</label>
+                <label for="remember-me">Remember me</label>
             </div>
             
             <div id="error-box" class="error-msg"></div>
             
-            <button type="submit" id="login-btn" class="btn-submit">Authenticate</button>
+            <button type="submit" id="login-btn" class="btn-submit">Continue</button>
         </form>
-
-        <div class="footer-note">Enterprise Ledger &bull; v1.9.2</div>
     </div>
 
-    <script>
-        window.onload = async () => {
-            const savedEmail = localStorage.getItem('shop_saved_email');
-            if (savedEmail) {
-                document.getElementById('email').value = savedEmail;
-                document.getElementById('remember-me').checked = true;
-            }
+    <div class="sys-footer hidden" id="sys-footer">
+        Enterprise Ledger &middot; v1.9.2
+    </div>
 
-            // Sync Check: if already logged in, bypass login screen immediately
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                window.location.replace('dashboard.html');
-                return; 
-            }
-
-            // Reveal Login UI
-            document.getElementById('page-loader').classList.add('hidden');
-            document.getElementById('login-ui').classList.remove('hidden');
-        };
-
-        async function handleLogin(e) {
-            e.preventDefault(); 
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const rememberMe = document.getElementById('remember-me').checked;
-            const btn = document.getElementById('login-btn');
-            const errorBox = document.getElementById('error-box');
-
-            if (!email || !password) {
-                errorBox.innerText = "Please enter both credentials.";
-                errorBox.style.display = 'block';
-                return;
-            }
-
-            btn.innerText = "Verifying...";
-            btn.disabled = true;
-            errorBox.style.display = 'none';
-
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
-
-            if (error) {
-                errorBox.innerText = error.message;
-                errorBox.style.display = 'block';
-                btn.innerText = "Authenticate";
-                btn.disabled = false;
-            } else {
-                if (rememberMe) {
-                    localStorage.setItem('shop_saved_email', email);
-                } else {
-                    localStorage.removeItem('shop_saved_email');
-                }
-                window.location.replace('dashboard.html');
-            }
-        }
-    </script>
+    <!-- Isolated Auth Logic -->
+    <script src="auth.js"></script>
 </body>
 </html>
