@@ -179,7 +179,6 @@ async function loadVendorHistory(vendorId) {
         });
     }
 
-    // Mathematical Sort Oldest to Newest
     rawHistoryData.sort((a, b) => a.rawDate - b.rawDate);
     
     let runningBalance = parseFloat(activeAccount.opening_balance || 0);
@@ -198,7 +197,6 @@ async function loadVendorHistory(vendorId) {
         item.balance = runningBalance;
     });
 
-    // Reverse for UI Render
     rawHistoryData.sort((a, b) => b.rawDate - a.rawDate);
     renderTableHistory(rawHistoryData);
 }
@@ -300,7 +298,6 @@ async function editVendorDetails() {
             phone: formValues.phone,
             gst_number: formValues.gst,
             opening_balance: formValues.newOB
-            // Outstanding balance recalculates automatically via Postgres Trigger
         }).eq('id', activeAccount.id);
 
         if (error) return Swal.fire('Error', error.message, 'error');
@@ -337,7 +334,7 @@ async function editBill(billId, currentAmount) {
 async function deleteBill(billId) {
     const result = await Swal.fire({
         title: 'Delete Entry?',
-        text: "This will remove the entry and reverse its impact on the balance.",
+        text: "This will remove the entry and reverse its impact on the balance automatically.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc3545',
@@ -453,6 +450,10 @@ async function openAddBillModal() {
 
         if (billError) return Swal.fire('Error', billError.message, 'error');
 
+        const amountChange = billData.billType === 'CREDIT_NOTE' ? -billData.amount : billData.amount;
+        const newBalance = parseFloat(activeAccount.outstanding_balance || 0) + amountChange;
+        await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
+
         Swal.fire({ title: 'Logged!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
         await fetchDirectory();
         selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
@@ -528,6 +529,9 @@ async function openPayModal() {
             }]);
         }
 
+        const newBalance = parseFloat(activeAccount.outstanding_balance || 0) - payData.amount;
+        await supabaseClient.from('vendors').update({ outstanding_balance: newBalance }).eq('id', activeAccount.id);
+
         Swal.fire({ title: 'Payment Recorded!', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
         await fetchDirectory();
         selectVendor(activeAccount.id, document.querySelector('.account-item.active'));
@@ -564,7 +568,10 @@ async function promptPDFDownload() {
         margin: [12, 8, 12, 8],
         filename: `${activeAccount.name.trim().toUpperCase().replace(/\s+/g, '_')}_Statement_${new Date().toISOString().split('T')[0]}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: {
+            scale: 2,
+            useCORS: true
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'thead', 'img'] }
     };
