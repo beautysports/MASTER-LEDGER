@@ -183,8 +183,6 @@
             border-radius: 4px;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            transition: background-color 0.15s ease;
-            white-space: nowrap;
         }
         .ent-btn:hover { background-color: #000; color: white; }
 
@@ -198,8 +196,6 @@
             border-radius: 4px;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            transition: all 0.15s ease;
-            white-space: nowrap;
         }
         .ent-btn-outline:hover { background-color: var(--bg-color); border-color: var(--primary-dark); }
 
@@ -322,11 +318,8 @@
         /* --- Mobile Responsive Table Cards --- */
         @media (max-width: 768px) {
             .mobile-hide { display: none !important; }
-            
-            /* Clean up the double passbook-actions wrapper flex logic */
-            .pb-actions-wrapper { flex-direction: column !important; align-items: stretch !important; }
-            .pb-btn-group { flex-direction: column !important; width: 100% !important; }
-            .pb-btn-group button, .pb-actions-wrapper button { width: 100% !important; }
+            .passbook-actions { flex-direction: column; width: 100%; }
+            .passbook-actions button { width: 100%; }
 
             .ent-table thead { display: none; }
             .ent-table, .ent-table tbody, .ent-table tr, .ent-table td { display: block; width: 100%; }
@@ -437,13 +430,12 @@
                     </div>
 
                     <!-- Passbook Action Bar -->
-                    <div class="p-3 bg-white border-bottom d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 pb-actions-wrapper">
-                        <div class="d-flex gap-2 pb-btn-group w-100 w-md-auto flex-column flex-sm-row">
-                            <button class="ent-btn" onclick="openAddBillModal()">+ Add Due Bill</button>
-                            <button class="ent-btn-outline" onclick="openAddCreditModal()" title="Add Credit Note">- Credit Note</button>
+                    <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2 passbook-actions">
+                        <div class="d-flex gap-2 flex-wrap passbook-actions">
+                            <button class="ent-btn" onclick="openAddBillModal()">+ Add Bill / Credit</button>
                             <button class="ent-btn-outline" onclick="openPayModal()">Record Payment</button>
                         </div>
-                        <button class="ent-btn-outline w-100 w-md-auto" id="pdf-btn" onclick="downloadAccountPDF()">Download PDF</button>
+                        <button class="ent-btn-outline" id="pdf-btn" onclick="downloadAccountPDF()">Download PDF</button>
                     </div>
 
                     <!-- Passbook Ledger Table -->
