@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Enterprise Ledger</title>
     
-    <!-- Premium SaaS Font Stack: Plus Jakarta Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
@@ -35,13 +34,11 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Financial Typography: Replaces the ugly monospace with aligned standard numbers */
         .fin-math {
             font-variant-numeric: tabular-nums;
             letter-spacing: -0.02em;
         }
 
-        /* --- Enterprise Components --- */
         .ent-card {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -67,7 +64,6 @@
         
         .ent-label-light { color: #94a3b8; }
 
-        /* --- Form Controls --- */
         .form-control, .form-select {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -88,7 +84,6 @@
             color: #9ca3af;
         }
 
-        /* --- Strict Segmented Toggles --- */
         .segmented {
             display: flex;
             border: 1px solid var(--border);
@@ -115,7 +110,6 @@
             color: white;
         }
 
-        /* --- Buttons --- */
         .ent-btn {
             background-color: var(--primary-dark);
             color: white;
@@ -142,7 +136,6 @@
         .action-btn.danger { color: var(--debit); }
         .action-btn.danger:hover { background: #fef2f2; border-color: var(--debit); }
 
-        /* --- Table Strict --- */
         .ent-table { font-size: 0.8125rem; margin: 0; }
         .ent-table thead th {
             background: var(--bg-color);
@@ -169,8 +162,8 @@
             letter-spacing: 0.05em;
             padding: 3px 6px; border-radius: 3px; border: 1px solid var(--border);
         }
+        .cursor-pointer { cursor: pointer; }
 
-        /* --- Mobile Table Hack --- */
         @media (max-width: 768px) {
             .mobile-hide { display: none !important; }
             .ent-table thead { display: none; }
@@ -199,12 +192,11 @@
 </head>
 <body>
 
-    <script> window.APP_VERSION = 'v1.8.1'; </script>
+    <script> window.APP_VERSION = 'v2.0.0'; </script>
     <script src="navbar.js"></script>
 
     <main class="container-fluid py-4 mb-5" style="max-width: 1280px;">
         
-        <!-- Header Section -->
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom border-secondary-subtle">
             <div class="mb-3 mb-md-0">
                 <h4 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;">Daybook Terminal</h4>
@@ -218,9 +210,7 @@
             </div>
         </div>
 
-        <!-- Master Metrics Row -->
         <div class="row g-3 mb-4">
-            <!-- Physical Drawer -->
             <div class="col-12 col-xl-3">
                 <div class="ent-card ent-header-dark h-100 p-3">
                     <div class="ent-label ent-label-light">Physical Drawer</div>
@@ -228,8 +218,6 @@
                     <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600; letter-spacing: 0.04em;">STRICTLY CASH IN/OUT</div>
                 </div>
             </div>
-
-            <!-- Total Sales Split -->
             <div class="col-12 col-xl-4">
                 <div class="ent-card h-100 p-0 d-flex flex-row">
                     <div class="flex-fill p-3 border-end">
@@ -242,16 +230,12 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Total Expense -->
             <div class="col-6 col-xl-2">
                 <div class="ent-card h-100 p-3">
                     <div class="ent-label">Total Expense</div>
                     <h4 class="fw-bold m-0 text-danger fin-math">₹ <span id="display-expense">0.00</span></h4>
                 </div>
             </div>
-
-            <!-- Unified Ledger -->
             <div class="col-6 col-xl-3">
                 <div class="ent-card h-100 p-3" style="border-top: 3px solid var(--text-muted);">
                     <div class="ent-label">Unified Cash Ledger</div>
@@ -260,7 +244,6 @@
             </div>
         </div>
 
-        <!-- Entry Forms -->
         <div class="row g-3 mb-4">
             <!-- Record Income -->
             <div class="col-md-6">
@@ -297,7 +280,7 @@
                 </div>
             </div>
 
-            <!-- Record Expense -->
+            <!-- Record Expense with Smart Search -->
             <div class="col-md-6">
                 <div class="ent-card p-4 h-100 d-flex flex-column">
                     <h6 class="fw-bold text-danger mb-3 text-uppercase" style="letter-spacing: 0.05em;">Record Expense</h6>
@@ -310,27 +293,24 @@
                     </div>
                     <input type="hidden" id="expense-method" value="CASH">
 
-                    <label class="ent-label">Category</label>
-                    <select id="expense-category" class="form-select mb-3" onchange="toggleExpenseFields()">
-                        <option value="none" selected disabled>Select Classification...</option>
-                        <option value="vendor">Vendor / Supplier Payout</option>
-                        <option value="staff">Staff Wage / Advance</option>
-                        <option value="finance">Finance / Kuri EMI</option>
-                        <option value="generic">General Overhead</option>
-                    </select>
-
-                    <div id="vendor-group" class="mb-3 d-none">
-                        <label class="ent-label">Select Vendor</label>
-                        <select id="vendor-select" class="form-select"></select>
+                    <!-- SMART SEARCH UI -->
+                    <label class="ent-label text-primary">Universal Search Payee *</label>
+                    <div class="position-relative mb-3">
+                        <input type="text" id="smart-expense-search" class="form-control fw-bold border-primary text-dark" style="background: #f8faff;" placeholder="Type vendor, staff, or generic..." oninput="handleSmartSearch()">
+                        <div id="smart-search-results" class="list-group position-absolute w-100 shadow-lg d-none" style="z-index: 1000; max-height: 250px; overflow-y: auto;"></div>
                     </div>
-                    <div id="staff-group" class="mb-3 d-none">
-                        <label class="ent-label">Select Staff</label>
-                        <select id="staff-select" class="form-select"></select>
+                    
+                    <div id="smart-selected-badge" class="mb-3 d-none">
+                        <div class="d-inline-flex align-items-center bg-dark text-white px-3 py-2 rounded-3 shadow-sm w-100">
+                            <span class="fw-bold small flex-grow-1 text-truncate" id="smart-selected-name">Name</span>
+                            <span class="badge bg-secondary ms-2" style="font-size: 0.65rem;" id="smart-selected-type">TYPE</span>
+                            <span class="ms-3 cursor-pointer text-danger fw-bold fs-5" onclick="clearSmartSelection()" title="Clear Selection">×</span>
+                        </div>
                     </div>
-                    <div id="finance-group" class="mb-3 d-none">
-                        <label class="ent-label">Select Account</label>
-                        <select id="finance-select" class="form-select"></select>
-                    </div>
+                    
+                    <!-- Hidden Payload for Submit -->
+                    <input type="hidden" id="smart-expense-id">
+                    <input type="hidden" id="smart-expense-type">
 
                     <div class="row g-2 mb-4">
                         <div class="col-md-5">
@@ -347,7 +327,6 @@
             </div>
         </div>
 
-        <!-- Data Table -->
         <div class="ent-card overflow-hidden">
             <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center">
                 <h6 class="fw-bold m-0 text-uppercase" style="letter-spacing: 0.05em;">Ledger Output</h6>
