@@ -192,7 +192,7 @@
 </head>
 <body>
 
-    <script> window.APP_VERSION = 'v2.0.0'; </script>
+    <script> window.APP_VERSION = 'v2.0.1'; </script>
     <script src="navbar.js"></script>
 
     <main class="container-fluid py-4 mb-5" style="max-width: 1280px;">
@@ -296,7 +296,7 @@
                     <!-- SMART SEARCH UI -->
                     <label class="ent-label text-primary">Universal Search Payee *</label>
                     <div class="position-relative mb-3">
-                        <input type="text" id="smart-expense-search" class="form-control fw-bold border-primary text-dark" style="background: #f8faff;" placeholder="Type vendor, staff, or generic..." oninput="handleSmartSearch()">
+                        <input type="text" id="smart-expense-search" class="form-control fw-bold border-primary text-dark" style="background: #f8faff;" placeholder="Type vendor, staff, or generic..." oninput="handleSmartSearch()" onfocus="handleSmartSearch()">
                         <div id="smart-search-results" class="list-group position-absolute w-100 shadow-lg d-none" style="z-index: 1000; max-height: 250px; overflow-y: auto;"></div>
                     </div>
                     
@@ -319,7 +319,7 @@
                         </div>
                         <div class="col-md-7">
                             <label class="ent-label">Reference Note</label>
-                            <input type="text" id="expense-note" class="form-control" placeholder="Optional details">
+                            <input type="text" id="expense-note" class="form-control" placeholder="Optional details (e.g. Oct)">
                         </div>
                     </div>
                     <button class="ent-btn w-100 mt-auto" onclick="submitExpense()">Post Expense</button>
