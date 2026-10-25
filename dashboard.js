@@ -5,6 +5,17 @@ const DATE_STORAGE_KEY = 'daybook-active-date';
 // Global Smart Search Array
 let unifiedEntities = [];
 
+/* ---------- Click Outside to Close Dropdown ---------- */
+document.addEventListener('click', function(e) {
+    const searchInput = document.getElementById('smart-expense-search');
+    const resultsDiv = document.getElementById('smart-search-results');
+    if (searchInput && resultsDiv) {
+        if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+            resultsDiv.classList.add('d-none');
+        }
+    }
+});
+
 /* ---------- Date persistence across tabs ---------- */
 function getLocalDateString(d = new Date()) {
     const off = d.getTimezoneOffset();
@@ -69,7 +80,8 @@ async function loadDropdowns(shopId) {
     if (vendors) {
         vendors.forEach(v => {
             const isFin = (v.account_type === 'finance');
-            unifiedEntities.push({ id: v.id, name: v.name.toUpperCase(), type: isFin ? 'finance' : 'vendor' });
+            const safeName = (v.name || 'UNNAMED VENDOR').toUpperCase();
+            unifiedEntities.push({ id: v.id, name: safeName, type: isFin ? 'finance' : 'vendor' });
         });
     }
 
@@ -77,7 +89,8 @@ async function loadDropdowns(shopId) {
     const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
     if (staff) {
         staff.forEach(s => {
-            unifiedEntities.push({ id: s.id, name: s.name.toUpperCase(), type: 'staff' });
+            const safeName = (s.name || 'UNNAMED STAFF').toUpperCase();
+            unifiedEntities.push({ id: s.id, name: safeName, type: 'staff' });
         });
     }
 
@@ -88,13 +101,13 @@ async function loadDropdowns(shopId) {
         .eq('category', 'generic')
         .not('reference_note', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(1000); // Look at the last 1000 transactions to learn categories
+        .limit(1000); 
 
     if (generics) {
         const uniqueNames = new Set();
         generics.forEach(g => {
+            if(!g.reference_note) return;
             let note = g.reference_note.trim().toUpperCase();
-            // If the note has extra details (e.g. "STORE RENT - OCTOBER"), strip it to just "STORE RENT" for the directory
             if (note.includes(' - ')) {
                 note = note.split(' - ')[0].trim();
             }
@@ -109,17 +122,21 @@ async function loadDropdowns(shopId) {
 
 /* ---------- Smart Search UI Handlers ---------- */
 function handleSmartSearch() {
-    const query = document.getElementById('smart-expense-search').value.toLowerCase().trim();
+    const input = document.getElementById('smart-expense-search');
     const resultsDiv = document.getElementById('smart-search-results');
+    if (!input || !resultsDiv) return;
     
-    if (query.length < 1) { 
-        resultsDiv.classList.add('d-none'); 
-        return; 
+    const query = input.value.toLowerCase().trim();
+    
+    let matches = [];
+    if (query.length === 0) {
+        // If empty, show first 50 results so it feels instantly interactive
+        matches = unifiedEntities.slice(0, 50);
+    } else {
+        matches = unifiedEntities.filter(e => e.name.toLowerCase().includes(query)).slice(0, 50);
     }
 
-    // Filter array by partial string match
-    const matches = unifiedEntities.filter(e => e.name.toLowerCase().includes(query));
-    const exactMatchExists = matches.some(m => m.name.toLowerCase() === query);
+    const exactMatchExists = query.length > 0 && matches.some(m => m.name.toLowerCase() === query);
     
     resultsDiv.innerHTML = '';
     
@@ -138,8 +155,7 @@ function handleSmartSearch() {
         resultsDiv.appendChild(a);
     });
 
-    // If they typed something entirely new, offer to create it instantly
-    if (!exactMatchExists) {
+    if (query.length > 0 && !exactMatchExists) {
         const aNew = document.createElement('a');
         aNew.className = 'list-group-item list-group-item-action py-2 cursor-pointer bg-light';
         aNew.innerHTML = `
@@ -154,27 +170,22 @@ function handleSmartSearch() {
 }
 
 function selectSmartEntity(id, name, type) {
-    // Populate hidden inputs for form submission
     document.getElementById('smart-expense-id').value = id;
     document.getElementById('smart-expense-type').value = type;
     
-    // Hide search elements
     document.getElementById('smart-expense-search').value = '';
     document.getElementById('smart-expense-search').classList.add('d-none');
     document.getElementById('smart-search-results').classList.add('d-none');
     
-    // Show selected badge
     document.getElementById('smart-selected-name').innerText = name;
     document.getElementById('smart-selected-type').innerText = type.toUpperCase();
     document.getElementById('smart-selected-badge').classList.remove('d-none');
 }
 
 function clearSmartSelection() {
-    // Reset hidden inputs
     document.getElementById('smart-expense-id').value = '';
     document.getElementById('smart-expense-type').value = '';
     
-    // Toggle UI back to search
     document.getElementById('smart-selected-badge').classList.add('d-none');
     document.getElementById('smart-expense-search').classList.remove('d-none');
     document.getElementById('smart-expense-search').focus();
@@ -254,9 +265,13 @@ async function loadDashboardData() {
             else if (txn.category === 'finance' && txn.vendors) { mainGroup = 'FINANCE / EMI'; partyName = txn.vendors.name; }
             else if (txn.category === 'staff' && txn.staff) { mainGroup = 'STAFF WAGE'; partyName = txn.staff.name; }
             
-            // Clean up the note formatting for Generic overheads so it doesn't look messy
+            // This line crashed your UI previously. It is now completely bulletproofed.
             let refNote = txn.reference_note ? `<div class="text-muted" style="font-size: 0.7rem; margin-top: 2px;">Ref: ${txn.reference_note}</div>` : '';
-            if (partyName === txn.reference_note || txn.reference_note.includes(partyName)) refNote = '';
+            if (txn.reference_note && partyName) {
+                if (txn.reference_note === partyName || txn.reference_note.includes(partyName)) {
+                    refNote = '';
+                }
+            }
 
             if (!isLegacySweep) {
                 processedTxns.push({
@@ -370,7 +385,7 @@ async function submitExpense() {
     const smartId = document.getElementById('smart-expense-id').value;
     const smartType = document.getElementById('smart-expense-type').value;
 
-    if(!smartId || !smartType) return Swal.fire('Missing Payee', 'Please search and select an expense account or create a new overhead.', 'warning');
+    if(!smartId || !smartType) return Swal.fire('Missing Payee', 'Please search and click a payee classification from the dropdown.', 'warning');
     if(!amount || amount <= 0) return Swal.fire('Invalid', 'Enter valid amount.', 'error');
 
     let category = '';
@@ -379,7 +394,6 @@ async function submitExpense() {
     if (smartType === 'generic') {
         category = 'generic';
         
-        // This is the memory tag builder. It combines the core name (e.g. "STORE RENT") with optional user notes (e.g. "OCTOBER")
         const baseName = document.getElementById('smart-selected-name').innerText;
         if (note) {
             note = `${baseName} - ${note}`;
@@ -409,12 +423,11 @@ async function submitExpense() {
 
     if (insertErr) return Swal.fire('Error', insertErr.message, 'error');
     
-    // Clear Inputs & Reset UI so the dropdown memory refreshes next time
     document.getElementById('expense-amount').value = '';
     document.getElementById('expense-note').value = '';
     clearSmartSelection();
     
-    // Reload dropdowns immediately so the new memory item is instantly searchable
+    // Reload memory immediately so new overheads instantly appear in the search bar
     await loadDropdowns(currentShopId);
 
     Swal.fire({ title: 'Logged', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
@@ -459,8 +472,7 @@ async function deleteTransaction(txnId) {
         const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', txnId);
         if (delError) return Swal.fire('Error', delError.message, 'error');
         
-        // Reload dropdowns in case they deleted the only record of a specific overhead
-        await loadDropdowns(currentShopId);
+        await loadDropdowns(currentShopId); // Reload memory in case they deleted a unique overhead
         
         Swal.fire({ title: 'Deleted', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
         await loadDashboardData();
