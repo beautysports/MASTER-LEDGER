@@ -2,6 +2,9 @@ let currentShopId = null;
 let isAdmin = false;
 const DATE_STORAGE_KEY = 'daybook-active-date';
 
+// Global Smart Search Array
+let unifiedEntities = [];
+
 /* ---------- Date persistence across tabs ---------- */
 function getLocalDateString(d = new Date()) {
     const off = d.getTimezoneOffset();
@@ -57,42 +60,100 @@ window.onload = async () => {
     }
 };
 
-/* ---------- UI Helpers ---------- */
-function toggleExpenseFields() {
-    const cat = document.getElementById('expense-category').value;
-    document.getElementById('vendor-group').classList.add('d-none');
-    document.getElementById('staff-group').classList.add('d-none');
-    document.getElementById('finance-group').classList.add('d-none');
-    
-    if (cat === 'vendor') document.getElementById('vendor-group').classList.remove('d-none');
-    if (cat === 'staff') document.getElementById('staff-group').classList.remove('d-none');
-    if (cat === 'finance') document.getElementById('finance-group').classList.remove('d-none');
-}
-
+/* ---------- Smart Search Data Load ---------- */
 async function loadDropdowns(shopId) {
-    const { data: vendors } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId).or('account_type.eq.vendor,account_type.is.null');
-    const vSelect = document.getElementById('vendor-select');
-    vSelect.innerHTML = '<option value="" selected disabled>Choose Vendor...</option>';
-    if (vendors) vendors.forEach(v => vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`);
+    unifiedEntities = [];
+    
+    // 1. Fetch Vendors and Finances
+    const { data: vendors } = await supabaseClient.from('vendors').select('id, name, account_type').eq('shop_id', shopId);
+    if (vendors) {
+        vendors.forEach(v => {
+            const isFin = (v.account_type === 'finance');
+            unifiedEntities.push({ id: v.id, name: v.name, type: isFin ? 'finance' : 'vendor' });
+        });
+    }
 
+    // 2. Fetch Staff
     const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
-    const sSelect = document.getElementById('staff-select');
-    sSelect.innerHTML = '<option value="" selected disabled>Choose Staff...</option>';
-    if (staff) staff.forEach(s => sSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+    if (staff) {
+        staff.forEach(s => {
+            unifiedEntities.push({ id: s.id, name: s.name, type: 'staff' });
+        });
+    }
 
-    const { data: finances } = await supabaseClient.from('vendors').select('id, name').eq('shop_id', shopId).eq('account_type', 'finance');
-    const fSelect = document.getElementById('finance-select');
-    fSelect.innerHTML = '<option value="" selected disabled>Choose Finance / Account...</option>';
-    if (finances) finances.forEach(f => fSelect.innerHTML += `<option value="${f.id}">${f.name}</option>`);
+    // 3. Static Overheads
+    unifiedEntities.push({ id: 'GENERIC', name: 'General Overhead / Miscellaneous', type: 'generic' });
 }
 
+/* ---------- Smart Search UI Handlers ---------- */
+function handleSmartSearch() {
+    const query = document.getElementById('smart-expense-search').value.toLowerCase();
+    const resultsDiv = document.getElementById('smart-search-results');
+    
+    if (query.length < 1) { 
+        resultsDiv.classList.add('d-none'); 
+        return; 
+    }
+
+    // Filter array by partial string match
+    const matches = unifiedEntities.filter(e => e.name.toLowerCase().includes(query));
+    
+    resultsDiv.innerHTML = '';
+    matches.forEach(m => {
+        const a = document.createElement('a');
+        a.className = 'list-group-item list-group-item-action py-2 cursor-pointer border-bottom';
+        
+        // Color coding by type
+        let typeColor = m.type === 'vendor' ? 'text-primary' : (m.type === 'staff' ? 'text-success' : (m.type === 'finance' ? 'text-info' : 'text-warning'));
+        
+        a.innerHTML = `
+            <div class="fw-bold text-dark" style="font-size: 0.85rem;">${m.name}</div>
+            <div class="small fw-bold ${typeColor}" style="font-size: 0.65rem; text-transform: uppercase;">${m.type}</div>
+        `;
+        a.onclick = () => selectSmartEntity(m.id, m.name, m.type);
+        resultsDiv.appendChild(a);
+    });
+    
+    if (matches.length === 0) {
+        resultsDiv.innerHTML = `<div class="p-3 text-muted small text-center fw-semibold">No match found</div>`;
+    }
+    resultsDiv.classList.remove('d-none');
+}
+
+function selectSmartEntity(id, name, type) {
+    // Populate hidden inputs for form submission
+    document.getElementById('smart-expense-id').value = id;
+    document.getElementById('smart-expense-type').value = type;
+    
+    // Hide search elements
+    document.getElementById('smart-expense-search').value = '';
+    document.getElementById('smart-expense-search').classList.add('d-none');
+    document.getElementById('smart-search-results').classList.add('d-none');
+    
+    // Show selected badge
+    document.getElementById('smart-selected-name').innerText = name;
+    document.getElementById('smart-selected-type').innerText = type.toUpperCase();
+    document.getElementById('smart-selected-badge').classList.remove('d-none');
+}
+
+function clearSmartSelection() {
+    // Reset hidden inputs
+    document.getElementById('smart-expense-id').value = '';
+    document.getElementById('smart-expense-type').value = '';
+    
+    // Toggle UI back to search
+    document.getElementById('smart-selected-badge').classList.add('d-none');
+    document.getElementById('smart-expense-search').classList.remove('d-none');
+    document.getElementById('smart-expense-search').focus();
+}
+
+/* ---------- Utils ---------- */
 function getLocalDayBounds(dateString) {
     const start = new Date(`${dateString}T00:00:00`).toISOString();
     const end = new Date(`${dateString}T23:59:59.999`).toISOString();
     return { start, end };
 }
 
-/* ---------- Smooth Numeric Animations ---------- */
 function animateMetric(id, newValue) {
     const el = document.getElementById(id);
     const from = parseFloat(el.dataset.val || 0);
@@ -117,16 +178,13 @@ async function loadDashboardData() {
     const selectedDate = document.getElementById('active-date').value;
     if (!selectedDate) return;
 
-    // Show loading text
     document.getElementById('txn-body').innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center py-4 text-muted fin-math fw-semibold">Fetching ledger...</td></tr>`;
 
     const { start, end } = getLocalDayBounds(selectedDate);
 
-    // Fetch unified vault balance
     const { data: shopData } = await supabaseClient.from('shops').select('master_ledger_balance').eq('id', currentShopId).single();
     animateMetric('display-vault', parseFloat(shopData?.master_ledger_balance || 0));
 
-    // Fetch day's transactions
     const { data: txns, error } = await supabaseClient.from('daily_transactions')
         .select(`*, vendors ( name ), staff ( name )`)
         .eq('shop_id', currentShopId)
@@ -143,22 +201,19 @@ async function loadDashboardData() {
     if (txns && txns.length > 0) {
         txns.forEach(txn => {
             const amt = parseFloat(txn.amount);
-            const isLegacySweep = txn.reference_note && txn.reference_note.includes('Transferred to Master Vault');
+            const isLegacySweep = txn.reference_note && (txn.reference_note.includes('Transferred to Master Vault') || txn.reference_note.includes('Automated 2:00 AM'));
 
-            // Calculate aggregations
             if (txn.transaction_type === 'INCOME') {
                 if (txn.payment_method === 'CASH') cashSales += amt;
                 else upiSales += amt;
             }
             if (txn.transaction_type === 'EXPENSE' && !isLegacySweep) totalExpense += amt;
 
-            // Physical Drawer Logic
             if (txn.payment_method === 'CASH') {
                 if (txn.transaction_type === 'INCOME') { drawerCash += amt; runningCashBalance += amt; }
                 if (txn.transaction_type === 'EXPENSE') { drawerCash -= amt; runningCashBalance -= amt; }
             }
 
-            // Clean up classification names
             let mainGroup = (txn.category || 'OTHER').toUpperCase();
             let partyName = txn.reference_note || '-';
             
@@ -169,7 +224,6 @@ async function loadDashboardData() {
             let refNote = txn.reference_note ? `<div class="text-muted" style="font-size: 0.7rem; margin-top: 2px;">Ref: ${txn.reference_note}</div>` : '';
             if (partyName === txn.reference_note) refNote = '';
 
-            // HIDE LEGACY SWEEPS FROM THE UI
             if (!isLegacySweep) {
                 processedTxns.push({
                     ...txn,
@@ -183,8 +237,7 @@ async function loadDashboardData() {
         });
     }
 
-    // Render Table
-    processedTxns.reverse(); // Newest first
+    processedTxns.reverse(); 
     const tbody = document.getElementById('txn-body');
     tbody.innerHTML = '';
 
@@ -276,24 +329,27 @@ async function submitIncome() {
 
 async function submitExpense() { 
     if(!currentShopId) return;
-    const category = document.getElementById('expense-category').value;
     const method = document.getElementById('expense-method').value;
     const amount = parseFloat(document.getElementById('expense-amount').value);
     const note = document.getElementById('expense-note').value;
     
-    if(category === 'none') return Swal.fire('Missing', 'Select classification.', 'warning');
+    const smartId = document.getElementById('smart-expense-id').value;
+    const smartType = document.getElementById('smart-expense-type').value;
+
+    if(!smartId || !smartType) return Swal.fire('Missing Payee', 'Please search and select a payee classification.', 'warning');
     if(!amount || amount <= 0) return Swal.fire('Invalid', 'Enter valid amount.', 'error');
 
+    let category = '';
     let vendor_id = null, staff_id = null;
-    if (category === 'vendor') {
-        vendor_id = document.getElementById('vendor-select').value;
-        if (!vendor_id) return Swal.fire('Missing', 'Select vendor.', 'warning');
-    } else if (category === 'staff') {
-        staff_id = document.getElementById('staff-select').value;
-        if (!staff_id) return Swal.fire('Missing', 'Select staff.', 'warning');
-    } else if (category === 'finance') {
-        vendor_id = document.getElementById('finance-select').value; 
-        if (!vendor_id) return Swal.fire('Missing', 'Select account.', 'warning');
+
+    if (smartType === 'generic') {
+        category = 'generic';
+    } else if (smartType === 'staff') {
+        category = 'staff';
+        staff_id = smartId;
+    } else {
+        category = smartType; // 'vendor' or 'finance'
+        vendor_id = smartId;
     }
 
     const { error: insertErr } = await supabaseClient.from('daily_transactions').insert([{
@@ -311,8 +367,11 @@ async function submitExpense() {
 
     if (insertErr) return Swal.fire('Error', insertErr.message, 'error');
     
+    // Clear Inputs & Reset UI
     document.getElementById('expense-amount').value = '';
     document.getElementById('expense-note').value = '';
+    clearSmartSelection();
+
     Swal.fire({ title: 'Logged', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
     await loadDashboardData();
 }
