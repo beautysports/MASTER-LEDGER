@@ -69,7 +69,7 @@ async function loadDropdowns(shopId) {
     if (vendors) {
         vendors.forEach(v => {
             const isFin = (v.account_type === 'finance');
-            unifiedEntities.push({ id: v.id, name: v.name, type: isFin ? 'finance' : 'vendor' });
+            unifiedEntities.push({ id: v.id, name: v.name.toUpperCase(), type: isFin ? 'finance' : 'vendor' });
         });
     }
 
@@ -77,17 +77,39 @@ async function loadDropdowns(shopId) {
     const { data: staff } = await supabaseClient.from('staff').select('id, name').eq('shop_id', shopId);
     if (staff) {
         staff.forEach(s => {
-            unifiedEntities.push({ id: s.id, name: s.name, type: 'staff' });
+            unifiedEntities.push({ id: s.id, name: s.name.toUpperCase(), type: 'staff' });
         });
     }
 
-    // 3. Static Overheads
-    unifiedEntities.push({ id: 'GENERIC', name: 'General Overhead / Miscellaneous', type: 'generic' });
+    // 3. Fetch Historical Generic Expenses (The "Memory" Engine)
+    const { data: generics } = await supabaseClient.from('daily_transactions')
+        .select('reference_note')
+        .eq('shop_id', shopId)
+        .eq('category', 'generic')
+        .not('reference_note', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1000); // Look at the last 1000 transactions to learn categories
+
+    if (generics) {
+        const uniqueNames = new Set();
+        generics.forEach(g => {
+            let note = g.reference_note.trim().toUpperCase();
+            // If the note has extra details (e.g. "STORE RENT - OCTOBER"), strip it to just "STORE RENT" for the directory
+            if (note.includes(' - ')) {
+                note = note.split(' - ')[0].trim();
+            }
+            if (note.length > 0) uniqueNames.add(note);
+        });
+        
+        uniqueNames.forEach(name => {
+            unifiedEntities.push({ id: 'GENERIC', name: name, type: 'generic' });
+        });
+    }
 }
 
 /* ---------- Smart Search UI Handlers ---------- */
 function handleSmartSearch() {
-    const query = document.getElementById('smart-expense-search').value.toLowerCase();
+    const query = document.getElementById('smart-expense-search').value.toLowerCase().trim();
     const resultsDiv = document.getElementById('smart-search-results');
     
     if (query.length < 1) { 
@@ -97,26 +119,37 @@ function handleSmartSearch() {
 
     // Filter array by partial string match
     const matches = unifiedEntities.filter(e => e.name.toLowerCase().includes(query));
+    const exactMatchExists = matches.some(m => m.name.toLowerCase() === query);
     
     resultsDiv.innerHTML = '';
+    
     matches.forEach(m => {
         const a = document.createElement('a');
         a.className = 'list-group-item list-group-item-action py-2 cursor-pointer border-bottom';
         
-        // Color coding by type
         let typeColor = m.type === 'vendor' ? 'text-primary' : (m.type === 'staff' ? 'text-success' : (m.type === 'finance' ? 'text-info' : 'text-warning'));
-        
+        let displayType = m.type === 'generic' ? 'OVERHEAD / GENERAL' : m.type;
+
         a.innerHTML = `
             <div class="fw-bold text-dark" style="font-size: 0.85rem;">${m.name}</div>
-            <div class="small fw-bold ${typeColor}" style="font-size: 0.65rem; text-transform: uppercase;">${m.type}</div>
+            <div class="small fw-bold ${typeColor}" style="font-size: 0.65rem; text-transform: uppercase;">${displayType}</div>
         `;
         a.onclick = () => selectSmartEntity(m.id, m.name, m.type);
         resultsDiv.appendChild(a);
     });
-    
-    if (matches.length === 0) {
-        resultsDiv.innerHTML = `<div class="p-3 text-muted small text-center fw-semibold">No match found</div>`;
+
+    // If they typed something entirely new, offer to create it instantly
+    if (!exactMatchExists) {
+        const aNew = document.createElement('a');
+        aNew.className = 'list-group-item list-group-item-action py-2 cursor-pointer bg-light';
+        aNew.innerHTML = `
+            <div class="fw-bold text-dark" style="font-size: 0.85rem;">"${query.toUpperCase()}"</div>
+            <div class="small fw-bold text-warning" style="font-size: 0.65rem; text-transform: uppercase;">+ CREATE NEW GENERAL OVERHEAD</div>
+        `;
+        aNew.onclick = () => selectSmartEntity('GENERIC', query.toUpperCase(), 'generic');
+        resultsDiv.appendChild(aNew);
     }
+    
     resultsDiv.classList.remove('d-none');
 }
 
@@ -221,8 +254,9 @@ async function loadDashboardData() {
             else if (txn.category === 'finance' && txn.vendors) { mainGroup = 'FINANCE / EMI'; partyName = txn.vendors.name; }
             else if (txn.category === 'staff' && txn.staff) { mainGroup = 'STAFF WAGE'; partyName = txn.staff.name; }
             
+            // Clean up the note formatting for Generic overheads so it doesn't look messy
             let refNote = txn.reference_note ? `<div class="text-muted" style="font-size: 0.7rem; margin-top: 2px;">Ref: ${txn.reference_note}</div>` : '';
-            if (partyName === txn.reference_note) refNote = '';
+            if (partyName === txn.reference_note || txn.reference_note.includes(partyName)) refNote = '';
 
             if (!isLegacySweep) {
                 processedTxns.push({
@@ -331,12 +365,12 @@ async function submitExpense() {
     if(!currentShopId) return;
     const method = document.getElementById('expense-method').value;
     const amount = parseFloat(document.getElementById('expense-amount').value);
-    const note = document.getElementById('expense-note').value;
+    let note = document.getElementById('expense-note').value.trim();
     
     const smartId = document.getElementById('smart-expense-id').value;
     const smartType = document.getElementById('smart-expense-type').value;
 
-    if(!smartId || !smartType) return Swal.fire('Missing Payee', 'Please search and select a payee classification.', 'warning');
+    if(!smartId || !smartType) return Swal.fire('Missing Payee', 'Please search and select an expense account or create a new overhead.', 'warning');
     if(!amount || amount <= 0) return Swal.fire('Invalid', 'Enter valid amount.', 'error');
 
     let category = '';
@@ -344,6 +378,14 @@ async function submitExpense() {
 
     if (smartType === 'generic') {
         category = 'generic';
+        
+        // This is the memory tag builder. It combines the core name (e.g. "STORE RENT") with optional user notes (e.g. "OCTOBER")
+        const baseName = document.getElementById('smart-selected-name').innerText;
+        if (note) {
+            note = `${baseName} - ${note}`;
+        } else {
+            note = baseName;
+        }
     } else if (smartType === 'staff') {
         category = 'staff';
         staff_id = smartId;
@@ -367,10 +409,13 @@ async function submitExpense() {
 
     if (insertErr) return Swal.fire('Error', insertErr.message, 'error');
     
-    // Clear Inputs & Reset UI
+    // Clear Inputs & Reset UI so the dropdown memory refreshes next time
     document.getElementById('expense-amount').value = '';
     document.getElementById('expense-note').value = '';
     clearSmartSelection();
+    
+    // Reload dropdowns immediately so the new memory item is instantly searchable
+    await loadDropdowns(currentShopId);
 
     Swal.fire({ title: 'Logged', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
     await loadDashboardData();
@@ -413,6 +458,9 @@ async function deleteTransaction(txnId) {
     if (result.isConfirmed) {
         const { error: delError } = await supabaseClient.from('daily_transactions').delete().eq('id', txnId);
         if (delError) return Swal.fire('Error', delError.message, 'error');
+        
+        // Reload dropdowns in case they deleted the only record of a specific overhead
+        await loadDropdowns(currentShopId);
         
         Swal.fire({ title: 'Deleted', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
         await loadDashboardData();
