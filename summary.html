@@ -11,7 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         :root {
@@ -379,36 +378,53 @@
             .cashbook-table thead { display: none; }
             .cashbook-table, .cashbook-table tbody, .cashbook-table tr, .cashbook-table td { display: block; width: 100%; }
             .cashbook-table tr {
+                background: transparent;
+                border: none !important;
+                margin-bottom: 0;
+                padding: 0;
+            }
+            
+            /* The block card styling exactly mimicking your screenshot */
+            .mobile-card-row {
                 background: var(--surface);
                 border: 1px solid var(--border) !important;
                 border-radius: var(--radius);
                 margin-bottom: 10px;
-                padding: 4px 12px;
+                display: block;
             }
+            
             .group-header td {
-                 background-color: #f8fafc;
-                 border: none !important;
-                 padding: 12px !important;
-                 margin-bottom: 0;
-                 border-radius: 0;
+                 background-color: var(--surface);
+                 border: 1px solid var(--border) !important;
+                 border-radius: var(--radius);
+                 padding: 16px !important;
+                 margin-bottom: 10px;
+                 text-align: right !important; /* Forces the header text to the right on mobile */
             }
+            
             .closing-row td {
                 background-color: var(--primary-dark) !important;
                 color: #ffffff !important;
-                padding: 12px !important;
+                padding: 16px !important;
+                border-radius: var(--radius);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 10px;
             }
+            
             .cashbook-table td {
                 display: flex; justify-content: space-between; align-items: center;
-                padding: 8px 0; border: none; border-bottom: 1px solid var(--border-light);
+                padding: 12px 16px; border: none; border-bottom: 1px solid var(--border-light);
                 text-align: right;
             }
             .cashbook-table td:last-child { border-bottom: none; }
             .cashbook-table td::before {
-                content: attr(data-label); font-weight: 700; font-size: 0.7rem; 
+                content: attr(data-label); font-weight: 800; font-size: 0.7rem; 
                 color: var(--text-muted); text-transform: uppercase; text-align: left;
                 letter-spacing: 0.05em;
             }
-            .item-indent { padding-left: 0 !important; }
+            .item-indent { padding-left: 16px !important; color: var(--text-main) !important;}
         }
         @media (min-width: 768px) {
             .border-end-md { border-right: 1px solid var(--border-light) !important; }
@@ -417,7 +433,7 @@
 </head>
 <body>
 
-    <script> window.APP_VERSION = 'v2.1.0'; </script>
+    <script> window.APP_VERSION = 'v2.1.1'; </script>
     <script src="navbar.js"></script>
 
     <main class="container-fluid py-4 mb-5 d-none" id="admin-content" style="max-width: 1280px;">
@@ -571,23 +587,23 @@
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content" id="print-area">
                 
-                <div class="cashbook-header-custom">
+                <div class="cashbook-header-custom border-0 pb-0">
                     <div>
-                        <div class="ent-label text-primary">Daily Daybook Summary</div>
-                        <h4 class="fw-bold m-0 text-dark" style="letter-spacing: -0.02em;" id="cb-shop-name">Loading...</h4>
+                        <div class="ent-label text-primary" style="font-size: 0.65rem;">DAILY DAYBOOK SUMMARY</div>
+                        <h3 class="fw-bold m-0 text-dark" style="letter-spacing: -0.04em;" id="cb-shop-name">Loading...</h3>
                     </div>
                     <div class="text-end">
-                        <div class="d-flex justify-content-end gap-2 mb-2 no-print">
-                            <button type="button" class="btn btn-sm btn-outline-dark fw-bold" onclick="printCashbook()">PDF / Print</button>
+                        <div class="d-flex justify-content-end gap-2 mb-1 no-print">
+                            <button type="button" class="btn btn-sm btn-outline-dark fw-bold px-3 py-1" style="font-size: 0.75rem;" onclick="printCashbook()">PDF / Print</button>
                             <button type="button" class="btn-close ms-2 mt-1" data-bs-dismiss="modal"></button>
                         </div>
-                        <h5 class="fw-bold m-0 text-dark fin-math" style="letter-spacing: -0.02em;" id="cb-date">YYYY-MM-DD</h5>
-                        <div class="ent-label mt-1" id="cb-day">DAY</div>
+                        <h4 class="fw-bold m-0 text-dark fin-math" style="letter-spacing: -0.02em;" id="cb-date">YYYY-MM-DD</h4>
+                        <div class="ent-label mt-1 text-muted" style="font-size: 0.65rem;" id="cb-day">DAY</div>
                     </div>
                 </div>
 
-                <div class="modal-body p-0" style="background: var(--bg-color);">
-                    <div class="table-responsive bg-white">
+                <div class="modal-body p-3 p-md-4 pt-md-2" style="background: var(--surface);">
+                    <div class="table-responsive">
                         <table class="table cashbook-table align-middle mb-0">
                             <thead>
                                 <tr>
