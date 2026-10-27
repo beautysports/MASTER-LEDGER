@@ -271,25 +271,30 @@
             text-align: center;
         }
 
-        /* --- Day Audit Modal --- */
-        #dayAuditModal .modal-content {
+        /* --- Enterprise Daily Cashbook Modal --- */
+        #cashbookModal .modal-content {
             border-radius: var(--radius);
             border: 1px solid var(--border);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
         }
-        .audit-tile { padding: 12px; text-align: center; }
-        .audit-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 0;
-        }
-        .audit-desc {
+        .cashbook-table { font-size: 0.8125rem; margin: 0; width: 100%; }
+        .cashbook-table th {
+            background: var(--bg-color);
+            font-size: 0.7rem;
             font-weight: 700;
-            font-size: 0.82rem;
-            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border) !important;
+            padding: 10px 16px;
         }
+        .cashbook-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-light);
+            vertical-align: middle;
+        }
+        .cashbook-table tbody tr:hover { background: #f9fafb; }
+        
         .badge-mode {
             font-size: 0.65rem;
             font-weight: 800;
@@ -300,23 +305,46 @@
             border: 1px solid var(--border);
             background: var(--bg-color);
             color: var(--text-main);
+            display: inline-block;
         }
 
-        @media (min-width: 768px) {
-            .border-end-md { border-right: 1px solid var(--border-light) !important; }
-        }
+        /* Mobile Adjustments for Cashbook Table */
         @media (max-width: 767.98px) {
+            .mobile-hide { display: none !important; }
             .border-bottom-mobile {
                 border-bottom: 1px solid var(--border-light) !important;
                 padding-bottom: 1rem !important;
                 margin-bottom: 1rem !important;
             }
+            .cashbook-table thead { display: none; }
+            .cashbook-table, .cashbook-table tbody, .cashbook-table tr, .cashbook-table td { display: block; width: 100%; }
+            .cashbook-table tr {
+                background: var(--surface);
+                border: 1px solid var(--border) !important;
+                border-radius: var(--radius);
+                margin-bottom: 10px;
+                padding: 4px 12px;
+            }
+            .cashbook-table td {
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 8px 0; border: none; border-bottom: 1px solid var(--border-light);
+                text-align: right;
+            }
+            .cashbook-table td:last-child { border-bottom: none; }
+            .cashbook-table td::before {
+                content: attr(data-label); font-weight: 700; font-size: 0.7rem; 
+                color: var(--text-muted); text-transform: uppercase; text-align: left;
+                letter-spacing: 0.05em;
+            }
+        }
+        @media (min-width: 768px) {
+            .border-end-md { border-right: 1px solid var(--border-light) !important; }
         }
     </style>
 </head>
 <body>
 
-    <script> window.APP_VERSION = 'v1.9.2'; </script>
+    <script> window.APP_VERSION = 'v1.9.3'; </script>
     <script src="navbar.js"></script>
 
     <main class="container-fluid py-4 mb-5 d-none" id="admin-content" style="max-width: 1280px;">
@@ -336,7 +364,6 @@
 
         <!-- KPI Row -->
         <div class="row g-3 mb-4">
-            <!-- Total Income -->
             <div class="col-12 col-md-5">
                 <div class="ent-card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
                     <div>
@@ -350,7 +377,6 @@
                 </div>
             </div>
 
-            <!-- Total Expense -->
             <div class="col-6 col-md-3">
                 <div class="ent-card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
                     <div>
@@ -361,7 +387,6 @@
                 </div>
             </div>
 
-            <!-- Net Operating Profit -->
             <div class="col-6 col-md-4">
                 <div class="ent-card ent-header-dark h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
                     <div>
@@ -468,34 +493,51 @@
         </div>
     </main>
 
-    <!-- DAY AUDIT MODAL -->
-    <div class="modal fade" id="dayAuditModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <!-- NEW ENTERPRISE DAILY CASHBOOK MODAL -->
+    <div class="modal fade" id="cashbookModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header border-bottom px-4 py-3 bg-light">
+                <div class="modal-header border-bottom px-4 py-3 bg-light d-flex justify-content-between align-items-center">
                     <div>
-                        <div class="ent-label m-0">End of Day Audit Snapshot</div>
-                        <h6 class="fw-bold m-0 text-dark fin-math mt-1" id="auditDateLabel">YYYY-MM-DD</h6>
+                        <div class="ent-label m-0 text-primary">Daily Cash Book (Statement)</div>
+                        <h5 class="fw-bold m-0 text-dark fin-math mt-1" id="cashbookDateLabel" style="letter-spacing: -0.02em;">YYYY-MM-DD</h5>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-0">
-                    <div class="row g-0 border-bottom text-center bg-white fin-math">
-                        <div class="col-6 audit-tile border-end">
-                            <div class="ent-label mb-1">Cash Tally (In / Out)</div>
-                            <span class="text-success fw-bold small">₹ <span id="auditCashIn">0.00</span></span>
-                            <span class="text-muted mx-1">/</span>
-                            <span class="text-danger fw-bold small">₹ <span id="auditCashOut">0.00</span></span>
-                        </div>
-                        <div class="col-6 audit-tile">
-                            <div class="ent-label mb-1">UPI Tally (In / Out)</div>
-                            <span class="text-success fw-bold small">₹ <span id="auditUpiIn">0.00</span></span>
-                            <span class="text-muted mx-1">/</span>
-                            <span class="text-danger fw-bold small">₹ <span id="auditUpiOut">0.00</span></span>
-                        </div>
+                
+                <!-- Cash Summary Banner -->
+                <div class="bg-dark text-white px-4 py-3 d-flex flex-wrap gap-4 align-items-center border-bottom">
+                    <div>
+                        <div class="ent-label ent-label-light mb-1">TOTAL CASH IN (DR)</div>
+                        <div class="fw-bold fin-math text-success">₹ <span id="cb-total-in">0.00</span></div>
                     </div>
-                    <div class="px-3 py-2" style="max-height: 42vh; overflow-y: auto;">
-                        <ul class="list-group list-group-flush fin-math" id="auditTxList"></ul>
+                    <div class="border-end border-secondary" style="height: 30px;"></div>
+                    <div>
+                        <div class="ent-label ent-label-light mb-1">TOTAL CASH OUT (CR)</div>
+                        <div class="fw-bold fin-math text-danger">₹ <span id="cb-total-out">0.00</span></div>
+                    </div>
+                    <div class="ms-auto pt-2 pt-md-0 d-none d-md-block">
+                        <div class="badge-mode bg-white text-dark fin-math px-2 py-1">NON-CASH (UPI): ₹ <span id="cb-total-upi">0.00</span></div>
+                    </div>
+                </div>
+
+                <div class="modal-body p-0" style="background: var(--bg-color);">
+                    <!-- The Ledger Table -->
+                    <div class="table-responsive bg-white">
+                        <table class="table cashbook-table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4" style="width: 15%;">Date/Time</th>
+                                    <th style="width: 40%;">Particulars</th>
+                                    <th class="text-end" style="width: 15%;">Dr (In)</th>
+                                    <th class="text-end" style="width: 15%;">Cr (Out)</th>
+                                    <th class="text-end pe-4" style="width: 15%;">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cashbook-body">
+                                <tr><td colspan="5" class="text-center py-5 text-muted fw-semibold">Loading cash book...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
