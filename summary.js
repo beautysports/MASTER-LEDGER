@@ -7,7 +7,7 @@ let expenseChartInst = null;
 
 // Global Time State
 let currentYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth(); // 0-11
+let currentMonth = new Date().getMonth(); 
 let globalActivityDates = [];
 
 // Helper to convert ISO timestamp to local YYYY-MM-DD
@@ -86,7 +86,6 @@ async function fetchAnalyticsData() {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const monthPadded = String(currentMonth + 1).padStart(2, '0');
 
-    // Use local month bounds so IST transactions align with Daybook Terminal
     const start = new Date(`${currentYear}-${monthPadded}-01T00:00:00`).toISOString();
     const end = new Date(`${currentYear}-${monthPadded}-${String(daysInMonth).padStart(2, '0')}T23:59:59.999`).toISOString();
 
@@ -113,7 +112,8 @@ async function fetchAnalyticsData() {
 function extractActivityDates(txns) {
     const dates = new Set();
     txns.forEach(t => {
-        const isSweep = t.reference_note && t.reference_note.includes('Transferred to Master Vault');
+        // Exclude legacy ghost sweeps from artificially triggering activity dots
+        const isSweep = t.reference_note && (t.reference_note.includes('Transferred to Master Vault') || t.reference_note.includes('Automated'));
         if (!isSweep) {
             dates.add(toLocalDateKey(t.created_at));
         }
@@ -140,7 +140,7 @@ function processTrendData(txns, year, month, daysInMonth) {
         const dStr = toLocalDateKey(t.created_at);
         if (!datesMap[dStr]) return;
 
-        const isSweep = t.reference_note && t.reference_note.includes('Transferred to Master Vault');
+        const isSweep = t.reference_note && (t.reference_note.includes('Transferred to Master Vault') || t.reference_note.includes('Automated'));
         if (t.transaction_type === 'INCOME') datesMap[dStr].in += parseFloat(t.amount);
         if (t.transaction_type === 'EXPENSE' && !isSweep) datesMap[dStr].out += parseFloat(t.amount);
     });
@@ -218,7 +218,7 @@ function processMTDData(txns) {
 
     txns.forEach(t => {
         const amt = parseFloat(t.amount);
-        const isSweep = t.reference_note && t.reference_note.includes('Transferred to Master Vault');
+        const isSweep = t.reference_note && (t.reference_note.includes('Transferred to Master Vault') || t.reference_note.includes('Automated'));
         const cat = (t.category || 'OTHER').toUpperCase();
 
         if (t.transaction_type === 'INCOME') {
@@ -229,7 +229,13 @@ function processMTDData(txns) {
             if (t.payment_method === 'UPI') mtdUpiIncome += amt;
         } else if (t.transaction_type === 'EXPENSE' && !isSweep) {
             mtdExpense += amt;
-            expenseCats[cat] = (expenseCats[cat] || 0) + amt;
+            
+            // Clean up the reference note mapping for analytics
+            let expenseName = cat;
+            if (t.reference_note && t.reference_note.trim().length > 0) {
+                expenseName = t.reference_note.split(' - ')[0].toUpperCase();
+            }
+            expenseCats[expenseName] = (expenseCats[expenseName] || 0) + amt;
         }
     });
 
@@ -350,77 +356,146 @@ function renderCalendar(daysInMonth) {
 
         const dotHtml = globalActivityDates.includes(dateKey) ? `<div class="activity-dot"></div>` : '';
         const todayClass = (isCurrentMonth && day === today.getDate()) ? ' is-today' : '';
-        calBody.innerHTML += `<div class="calendar-day${todayClass}" onclick="fetchDayAudit('${dateKey}')">${day}${dotHtml}</div>`;
+        calBody.innerHTML += `<div class="calendar-day${todayClass}" onclick="buildDailyCashbook('${dateKey}')">${day}${dotHtml}</div>`;
     }
 
     document.getElementById('loader-calendar').classList.add('d-none');
 }
 
-async function fetchDayAudit(dateKey) {
-    document.getElementById('auditDateLabel').innerText = dateKey;
+/* ======================================================================
+   ENTERPRISE DAILY CASHBOOK ENGINE (Dr / Cr / Balance)
+   ====================================================================== */
+async function buildDailyCashbook(dateKey) {
+    // 1. Setup UI
+    document.getElementById('cashbookDateLabel').innerText = dateKey;
+    const tbody = document.getElementById('cashbook-body');
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted fw-semibold"><div class="spinner-border spinner-border-sm text-secondary me-2"></div>Calculating Drawer Balance...</td></tr>`;
+    new bootstrap.Modal(document.getElementById('cashbookModal')).show();
 
-    const start = new Date(`${dateKey}T00:00:00`).toISOString();
-    const end = new Date(`${dateKey}T23:59:59.999`).toISOString();
+    // 2. Define strict timezone boundaries for the selected day
+    const startOfDay = new Date(`${dateKey}T00:00:00`).toISOString();
+    const endOfDay = new Date(`${dateKey}T23:59:59.999`).toISOString();
 
-    const { data: txns, error } = await supabaseClient
+    // 3. Fetch EVERY transaction prior to this day to calculate exact opening cash
+    const { data: pastTxns, error: pastError } = await supabaseClient
         .from('daily_transactions')
-        .select('*')
+        .select('amount, transaction_type, payment_method')
         .eq('shop_id', currentShopId)
-        .gte('created_at', start)
-        .lte('created_at', end)
-        .order('created_at', { ascending: false });
+        .lt('created_at', startOfDay);
 
-    if (error) return;
-
-    let cIn = 0, cOut = 0, uIn = 0, uOut = 0;
-    const listEl = document.getElementById('auditTxList');
-    listEl.innerHTML = '';
-
-    const validTxns = (txns || []).filter(tx => !(tx.reference_note && tx.reference_note.includes('Transferred to Master Vault')));
-
-    if (validTxns.length === 0) {
-        listEl.innerHTML = '<li class="list-group-item text-center border-0 py-4 empty-note">No transactions logged on this date.</li>';
-    } else {
-        validTxns.forEach(tx => {
-            const amt = parseFloat(tx.amount);
-            const isIncome = tx.transaction_type === 'INCOME';
-
-            if (isIncome) {
-                if (tx.payment_method === 'CASH') cIn += amt;
-                else uIn += amt;
-            } else {
-                if (tx.payment_method === 'CASH') cOut += amt;
-                else uOut += amt;
+    let openingCashBalance = 0;
+    if (pastTxns) {
+        pastTxns.forEach(pt => {
+            // Only physical cash affects the physical drawer opening balance
+            if (pt.payment_method === 'CASH') {
+                if (pt.transaction_type === 'INCOME') openingCashBalance += parseFloat(pt.amount);
+                if (pt.transaction_type === 'EXPENSE') openingCashBalance -= parseFloat(pt.amount);
             }
-
-            const color = isIncome ? 'success' : 'danger';
-            const sign = isIncome ? '+' : '-';
-            const timeStr = new Date(tx.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-            const desc = tx.reference_note
-                ? `${tx.category.toUpperCase()} — ${tx.reference_note}`
-                : tx.category.toUpperCase();
-
-            listEl.innerHTML += `
-                <li class="list-group-item px-0 bg-transparent border-0 border-bottom">
-                    <div class="audit-row">
-                        <div>
-                            <div class="audit-desc">${desc}</div>
-                            <div class="d-flex align-items-center gap-2 mt-1">
-                                <span class="badge-mode">${tx.payment_method}</span>
-                                <span class="text-muted small">${timeStr}</span>
-                            </div>
-                        </div>
-                        <span class="fw-bold text-${color}" style="white-space: nowrap;">${sign} ₹ ${amt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                </li>
-            `;
         });
     }
 
-    document.getElementById('auditCashIn').innerText = cIn.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-    document.getElementById('auditCashOut').innerText = cOut.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-    document.getElementById('auditUpiIn').innerText = uIn.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-    document.getElementById('auditUpiOut').innerText = uOut.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    // 4. Fetch transactions for the target day, resolving names from vendor/staff tables
+    const { data: dayTxns, error: dayError } = await supabaseClient
+        .from('daily_transactions')
+        .select('*, vendors(name), staff(name)')
+        .eq('shop_id', currentShopId)
+        .gte('created_at', startOfDay)
+        .lte('created_at', endOfDay)
+        .order('created_at', { ascending: true }); // Must be chronological for running balance
 
-    new bootstrap.Modal(document.getElementById('dayAuditModal')).show();
+    if (dayError || pastError) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger fw-bold">Database Error</td></tr>`;
+        return;
+    }
+
+    // 5. Build the Cashbook rows
+    let currentCashBalance = openingCashBalance;
+    let dayTotalCashIn = 0;
+    let dayTotalCashOut = 0;
+    let dayTotalUpi = 0;
+
+    let rowsHtml = '';
+
+    // First Row: Opening Balance
+    rowsHtml += `
+        <tr class="bg-light">
+            <td data-label="Date/Time" class="ps-md-4 fw-bold small text-muted fin-math">-</td>
+            <td data-label="Particulars" class="fw-bold text-dark">Opening Balance b/d</td>
+            <td data-label="Dr (In)" class="text-end fw-bold text-success fin-math">-</td>
+            <td data-label="Cr (Out)" class="text-end fw-bold text-danger fin-math">-</td>
+            <td data-label="Balance" class="text-end pe-md-4 fw-bold text-dark fin-math">₹ ${currentCashBalance.toFixed(2)}</td>
+        </tr>
+    `;
+
+    // Sequence Transactions
+    if (dayTxns && dayTxns.length > 0) {
+        dayTxns.forEach(tx => {
+            const isSweep = tx.reference_note && (tx.reference_note.includes('Transferred to Master Vault') || tx.reference_note.includes('Automated'));
+            if (isSweep) return; // Hide backend vault sweeps from the daybook view
+
+            const amt = parseFloat(tx.amount);
+            const isIncome = tx.transaction_type === 'INCOME';
+            const isCash = tx.payment_method === 'CASH';
+
+            // Resolve Particulars Name
+            let particulars = tx.reference_note || tx.category.toUpperCase();
+            if (tx.category === 'vendor' && tx.vendors) particulars = tx.vendors.name;
+            else if (tx.category === 'finance' && tx.vendors) particulars = tx.vendors.name;
+            else if (tx.category === 'staff' && tx.staff) particulars = tx.staff.name;
+
+            // Math execution
+            let drHtml = '-';
+            let crHtml = '-';
+
+            if (isCash) {
+                if (isIncome) {
+                    dayTotalCashIn += amt;
+                    currentCashBalance += amt;
+                    drHtml = `₹ ${amt.toFixed(2)}`;
+                } else {
+                    dayTotalCashOut += amt;
+                    currentCashBalance -= amt;
+                    crHtml = `₹ ${amt.toFixed(2)}`;
+                }
+            } else {
+                // Non-Cash (UPI)
+                dayTotalUpi += amt;
+                if (isIncome) drHtml = `₹ ${amt.toFixed(2)} <br><span class="badge-mode mt-1">UPI</span>`;
+                else crHtml = `₹ ${amt.toFixed(2)} <br><span class="badge-mode mt-1">UPI</span>`;
+            }
+
+            const timeStr = new Date(tx.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+            rowsHtml += `
+                <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
+                    <td data-label="Date/Time" class="ps-md-4 fw-bold small text-muted fin-math">${timeStr}</td>
+                    <td data-label="Particulars" class="fw-semibold text-dark" style="font-size: 0.9em;">${particulars}</td>
+                    <td data-label="Dr (In)" class="text-end fw-bold text-success fin-math">${drHtml}</td>
+                    <td data-label="Cr (Out)" class="text-end fw-bold text-danger fin-math">${crHtml}</td>
+                    <td data-label="Balance" class="text-end pe-md-4 fw-bold text-dark fin-math">
+                        ${isCash ? `₹ ${currentCashBalance.toFixed(2)}` : '<span class="text-muted fw-normal small">DIGI</span>'}
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        rowsHtml += `<tr><td colspan="5" class="text-center py-4 text-muted fw-semibold">No transactions found for this date.</td></tr>`;
+    }
+
+    // Last Row: Closing Balance
+    rowsHtml += `
+        <tr style="background-color: var(--primary-dark) !important;">
+            <td data-label="Date/Time" class="ps-md-4 fw-bold small fin-math" style="color: rgba(255,255,255,0.7);">-</td>
+            <td data-label="Particulars" class="fw-bold text-white">Closing Balance c/d</td>
+            <td data-label="Dr (In)" class="text-end fw-bold fin-math text-white">-</td>
+            <td data-label="Cr (Out)" class="text-end fw-bold fin-math text-white">-</td>
+            <td data-label="Balance" class="text-end pe-md-4 fw-bold fin-math text-white fs-6">₹ ${currentCashBalance.toFixed(2)}</td>
+        </tr>
+    `;
+
+    // Render Data
+    tbody.innerHTML = rowsHtml;
+    document.getElementById('cb-total-in').innerText = dayTotalCashIn.toFixed(2);
+    document.getElementById('cb-total-out').innerText = dayTotalCashOut.toFixed(2);
+    document.getElementById('cb-total-upi').innerText = dayTotalUpi.toFixed(2);
 }
