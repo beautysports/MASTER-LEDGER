@@ -1,4 +1,5 @@
 let currentShopId = null;
+let currentShopName = 'Enterprise Shop';
 let isAdmin = false;
 
 // Chart Instances
@@ -10,7 +11,6 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth(); 
 let globalActivityDates = [];
 
-// Helper to convert ISO timestamp to local YYYY-MM-DD
 function toLocalDateKey(isoString) {
     const d = new Date(isoString);
     const yr = d.getFullYear();
@@ -43,6 +43,13 @@ window.addEventListener('DOMContentLoaded', async () => {
             }
             currentShopId = profile.shop_id;
             isAdmin = true;
+
+            const { data: shopData } = await supabaseClient
+                .from('shops')
+                .select('name')
+                .eq('id', currentShopId)
+                .single();
+            if (shopData && shopData.name) currentShopName = shopData.name;
 
             document.getElementById('admin-content').classList.remove('d-none');
             await fetchAnalyticsData();
@@ -112,7 +119,6 @@ async function fetchAnalyticsData() {
 function extractActivityDates(txns) {
     const dates = new Set();
     txns.forEach(t => {
-        // Exclude legacy ghost sweeps from artificially triggering activity dots
         const isSweep = t.reference_note && (t.reference_note.includes('Transferred to Master Vault') || t.reference_note.includes('Automated'));
         if (!isSweep) {
             dates.add(toLocalDateKey(t.created_at));
@@ -229,8 +235,6 @@ function processMTDData(txns) {
             if (t.payment_method === 'UPI') mtdUpiIncome += amt;
         } else if (t.transaction_type === 'EXPENSE' && !isSweep) {
             mtdExpense += amt;
-            
-            // Clean up the reference note mapping for analytics
             let expenseName = cat;
             if (t.reference_note && t.reference_note.trim().length > 0) {
                 expenseName = t.reference_note.split(' - ')[0].toUpperCase();
@@ -249,7 +253,6 @@ function processMTDData(txns) {
     netEl.innerText = `${net >= 0 ? '+' : '-'} ₹ ${Math.abs(net).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     netEl.style.color = net >= 0 ? '#4ade80' : '#f87171';
 
-    // Top 5 Income
     const sortedInc = Object.keys(incomeCats)
         .map(k => ({ name: k, total: incomeCats[k] }))
         .sort((a, b) => b.total - a.total)
@@ -273,7 +276,6 @@ function processMTDData(txns) {
     });
     document.getElementById('top-income-list').innerHTML = incHtml || '<div class="empty-note">No income recorded for this period.</div>';
 
-    // Top 5 Expense
     const sortedExp = Object.keys(expenseCats)
         .map(k => ({ name: k, total: expenseCats[k] }))
         .sort((a, b) => b.total - a.total)
@@ -300,7 +302,6 @@ function processMTDData(txns) {
     document.getElementById('loader-metrics').classList.add('d-none');
     document.getElementById('loader-expense').classList.add('d-none');
 
-    // Doughnut Chart
     if (expenseChartInst) expenseChartInst.destroy();
     expenseChartInst = new Chart(document.getElementById('expenseChart'), {
         type: 'doughnut',
@@ -363,20 +364,31 @@ function renderCalendar(daysInMonth) {
 }
 
 /* ======================================================================
-   ENTERPRISE DAILY CASHBOOK ENGINE (Dr / Cr / Balance)
+   ENTERPRISE CATEGORIZED DAYBOOK 
    ====================================================================== */
 async function buildDailyCashbook(dateKey) {
     // 1. Setup UI
-    document.getElementById('cashbookDateLabel').innerText = dateKey;
+    document.getElementById('cb-shop-name').innerText = currentShopName;
+    const dateObj = new Date(dateKey);
+    
+    // Formatting: DD / MM / YYYY
+    const dDay = String(dateObj.getDate()).padStart(2, '0');
+    const dMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dYear = dateObj.getFullYear();
+    document.getElementById('cb-date').innerText = `${dDay} / ${dMonth} / ${dYear}`;
+    
+    const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    document.getElementById('cb-day').innerText = dayNames[dateObj.getDay()];
+
     const tbody = document.getElementById('cashbook-body');
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted fw-semibold"><div class="spinner-border spinner-border-sm text-secondary me-2"></div>Calculating Drawer Balance...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center py-5 text-muted fw-semibold"><div class="spinner-border spinner-border-sm text-secondary me-2"></div>Categorizing daybook...</td></tr>`;
     new bootstrap.Modal(document.getElementById('cashbookModal')).show();
 
-    // 2. Define strict timezone boundaries for the selected day
+    // 2. Define timezone boundaries
     const startOfDay = new Date(`${dateKey}T00:00:00`).toISOString();
     const endOfDay = new Date(`${dateKey}T23:59:59.999`).toISOString();
 
-    // 3. Fetch EVERY transaction prior to this day to calculate exact opening cash
+    // 3. Fetch exact opening cash
     const { data: pastTxns, error: pastError } = await supabaseClient
         .from('daily_transactions')
         .select('amount, transaction_type, payment_method')
@@ -386,7 +398,6 @@ async function buildDailyCashbook(dateKey) {
     let openingCashBalance = 0;
     if (pastTxns) {
         pastTxns.forEach(pt => {
-            // Only physical cash affects the physical drawer opening balance
             if (pt.payment_method === 'CASH') {
                 if (pt.transaction_type === 'INCOME') openingCashBalance += parseFloat(pt.amount);
                 if (pt.transaction_type === 'EXPENSE') openingCashBalance -= parseFloat(pt.amount);
@@ -394,108 +405,124 @@ async function buildDailyCashbook(dateKey) {
         });
     }
 
-    // 4. Fetch transactions for the target day, resolving names from vendor/staff tables
+    // 4. Fetch day transactions
     const { data: dayTxns, error: dayError } = await supabaseClient
         .from('daily_transactions')
         .select('*, vendors(name), staff(name)')
         .eq('shop_id', currentShopId)
         .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay)
-        .order('created_at', { ascending: true }); // Must be chronological for running balance
+        .lte('created_at', endOfDay);
 
     if (dayError || pastError) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger fw-bold">Database Error</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-danger fw-bold">Database Error</td></tr>`;
         return;
     }
 
-    // 5. Build the Cashbook rows
-    let currentCashBalance = openingCashBalance;
-    let dayTotalCashIn = 0;
-    let dayTotalCashOut = 0;
-    let dayTotalUpi = 0;
+    // 5. Categorize Data
+    let incCash = [], incUpi = [];
+    let expCash = [], expUpi = [];
+    let expWage = [];
+    
+    let totalCashIn = 0, totalCashOut = 0;
 
-    let rowsHtml = '';
-
-    // First Row: Opening Balance
-    rowsHtml += `
-        <tr class="bg-light">
-            <td data-label="Date/Time" class="ps-md-4 fw-bold small text-muted fin-math">-</td>
-            <td data-label="Particulars" class="fw-bold text-dark">Opening Balance b/d</td>
-            <td data-label="Dr (In)" class="text-end fw-bold text-success fin-math">-</td>
-            <td data-label="Cr (Out)" class="text-end fw-bold text-danger fin-math">-</td>
-            <td data-label="Balance" class="text-end pe-md-4 fw-bold text-dark fin-math">₹ ${currentCashBalance.toFixed(2)}</td>
-        </tr>
-    `;
-
-    // Sequence Transactions
-    if (dayTxns && dayTxns.length > 0) {
+    if (dayTxns) {
         dayTxns.forEach(tx => {
             const isSweep = tx.reference_note && (tx.reference_note.includes('Transferred to Master Vault') || tx.reference_note.includes('Automated'));
-            if (isSweep) return; // Hide backend vault sweeps from the daybook view
+            if (isSweep) return;
 
             const amt = parseFloat(tx.amount);
             const isIncome = tx.transaction_type === 'INCOME';
             const isCash = tx.payment_method === 'CASH';
 
-            // Resolve Particulars Name
-            let particulars = tx.reference_note || tx.category.toUpperCase();
-            if (tx.category === 'vendor' && tx.vendors) particulars = tx.vendors.name;
-            else if (tx.category === 'finance' && tx.vendors) particulars = tx.vendors.name;
-            else if (tx.category === 'staff' && tx.staff) particulars = tx.staff.name;
+            // Resolve name
+            let name = tx.reference_note || tx.category.toUpperCase();
+            if (tx.category === 'vendor' && tx.vendors) name = tx.vendors.name;
+            else if (tx.category === 'finance' && tx.vendors) name = tx.vendors.name;
+            else if (tx.category === 'staff' && tx.staff) name = tx.staff.name;
 
-            // Math execution
-            let drHtml = '-';
-            let crHtml = '-';
-
-            if (isCash) {
-                if (isIncome) {
-                    dayTotalCashIn += amt;
-                    currentCashBalance += amt;
-                    drHtml = `₹ ${amt.toFixed(2)}`;
-                } else {
-                    dayTotalCashOut += amt;
-                    currentCashBalance -= amt;
-                    crHtml = `₹ ${amt.toFixed(2)}`;
-                }
+            // Route to buckets
+            if (isIncome) {
+                if (isCash) { incCash.push({name, amt}); totalCashIn += amt; }
+                else { incUpi.push({name, amt}); }
             } else {
-                // Non-Cash (UPI)
-                dayTotalUpi += amt;
-                if (isIncome) drHtml = `₹ ${amt.toFixed(2)} <br><span class="badge-mode mt-1">UPI</span>`;
-                else crHtml = `₹ ${amt.toFixed(2)} <br><span class="badge-mode mt-1">UPI</span>`;
+                if (tx.category === 'staff') {
+                    expWage.push({name, amt});
+                    if(isCash) totalCashOut += amt;
+                } else if (isCash) {
+                    expCash.push({name, amt});
+                    totalCashOut += amt;
+                } else {
+                    expUpi.push({name, amt});
+                }
             }
-
-            const timeStr = new Date(tx.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-
-            rowsHtml += `
-                <tr style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
-                    <td data-label="Date/Time" class="ps-md-4 fw-bold small text-muted fin-math">${timeStr}</td>
-                    <td data-label="Particulars" class="fw-semibold text-dark" style="font-size: 0.9em;">${particulars}</td>
-                    <td data-label="Dr (In)" class="text-end fw-bold text-success fin-math">${drHtml}</td>
-                    <td data-label="Cr (Out)" class="text-end fw-bold text-danger fin-math">${crHtml}</td>
-                    <td data-label="Balance" class="text-end pe-md-4 fw-bold text-dark fin-math">
-                        ${isCash ? `₹ ${currentCashBalance.toFixed(2)}` : '<span class="text-muted fw-normal small">DIGI</span>'}
-                    </td>
-                </tr>
-            `;
         });
-    } else {
-        rowsHtml += `<tr><td colspan="5" class="text-center py-4 text-muted fw-semibold">No transactions found for this date.</td></tr>`;
     }
 
-    // Last Row: Closing Balance
+    // Final Math
+    const closingCashBalance = openingCashBalance + totalCashIn - totalCashOut;
+
+    // 6. Build HTML
+    let rowsHtml = '';
+    
+    const generateRow = (name, dr, cr) => {
+        const drStr = dr ? dr.toFixed(2) : '-';
+        const crStr = cr ? cr.toFixed(2) : '-';
+        const drClass = dr ? 'amt-out' : '';
+        const crClass = cr ? 'amt-in' : '';
+        return `
+            <tr class="item-row" style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
+                <td data-label="Particulars" class="item-indent">${name}</td>
+                <td data-label="Dr (Out)" class="text-end fin-math ${drClass}">${drStr}</td>
+                <td data-label="Cr (In)" class="text-end fin-math ${crClass}">${crStr}</td>
+            </tr>
+        `;
+    };
+
+    // --- INCOME ---
+    if (incCash.length > 0 || incUpi.length > 0) {
+        rowsHtml += `<tr class="group-header"><td colspan="3">Income</td></tr>`;
+        incCash.forEach(i => rowsHtml += generateRow(`CASH: ${i.name}`, null, i.amt));
+        incUpi.forEach(i => rowsHtml += generateRow(`UPI: ${i.name}`, null, i.amt));
+    }
+
+    // --- CASH EXPENSE ---
+    if (expCash.length > 0) {
+        rowsHtml += `<tr class="group-header"><td colspan="3">Expense (Cash)</td></tr>`;
+        expCash.forEach(e => rowsHtml += generateRow(e.name, e.amt, null));
+    }
+
+    // --- DIGITAL EXPENSE ---
+    if (expUpi.length > 0) {
+        rowsHtml += `<tr class="group-header"><td colspan="3">Expense (Digital / Bank)</td></tr>`;
+        expUpi.forEach(e => rowsHtml += generateRow(e.name, e.amt, null));
+    }
+
+    // --- WAGE ---
+    if (expWage.length > 0) {
+        rowsHtml += `<tr class="group-header"><td colspan="3">Wage (Staff Payouts)</td></tr>`;
+        expWage.forEach(w => rowsHtml += generateRow(w.name, w.amt, null));
+    }
+
+    if (rowsHtml === '') {
+        rowsHtml = `<tr><td colspan="3" class="text-center py-5 text-muted fw-semibold">No transactions logged.</td></tr>`;
+    }
+
+    // --- CLOSING BALANCE ---
     rowsHtml += `
-        <tr style="background-color: var(--primary-dark) !important;">
-            <td data-label="Date/Time" class="ps-md-4 fw-bold small fin-math" style="color: rgba(255,255,255,0.7);">-</td>
-            <td data-label="Particulars" class="fw-bold text-white">Closing Balance c/d</td>
-            <td data-label="Dr (In)" class="text-end fw-bold fin-math text-white">-</td>
-            <td data-label="Cr (Out)" class="text-end fw-bold fin-math text-white">-</td>
-            <td data-label="Balance" class="text-end pe-md-4 fw-bold fin-math text-white fs-6">₹ ${currentCashBalance.toFixed(2)}</td>
+        <tr class="closing-row">
+            <td data-label="Status" class="closing-label">Final Drawer Cash Balance</td>
+            <td class="text-end border-0 d-none d-md-table-cell"></td>
+            <td data-label="Balance" class="text-end fin-math closing-amt border-0">₹ ${closingCashBalance.toFixed(2)}</td>
         </tr>
     `;
 
-    // Render Data
     tbody.innerHTML = rowsHtml;
-    document.getElementById('cb-total-in').innerText = dayTotalCashIn.toFixed(2);
-    document.getElementById('cb-total-out').innerText = dayTotalCashOut.toFixed(2);
-    document.getElementById('cb-total-upi').innerText = dayTotalUpi.toFixed(2);
+}
+
+/* ---------- Print / PDF Handlers ---------- */
+async function printCashbook() {
+    const element = document.getElementById('print-area');
+    
+    // Using native print dialog which works flawlessly for standard tabular views
+    window.print();
 }
