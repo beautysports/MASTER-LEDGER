@@ -49,7 +49,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 .select('name')
                 .eq('id', currentShopId)
                 .single();
-            if (shopData && shopData.name) currentShopName = shopData.name;
+            if (shopData && shopData.name) currentShopName = shopData.name.toLowerCase(); // Lowercase per screenshot
 
             document.getElementById('admin-content').classList.remove('d-none');
             await fetchAnalyticsData();
@@ -388,24 +388,7 @@ async function buildDailyCashbook(dateKey) {
     const startOfDay = new Date(`${dateKey}T00:00:00`).toISOString();
     const endOfDay = new Date(`${dateKey}T23:59:59.999`).toISOString();
 
-    // 3. Fetch exact opening cash
-    const { data: pastTxns, error: pastError } = await supabaseClient
-        .from('daily_transactions')
-        .select('amount, transaction_type, payment_method')
-        .eq('shop_id', currentShopId)
-        .lt('created_at', startOfDay);
-
-    let openingCashBalance = 0;
-    if (pastTxns) {
-        pastTxns.forEach(pt => {
-            if (pt.payment_method === 'CASH') {
-                if (pt.transaction_type === 'INCOME') openingCashBalance += parseFloat(pt.amount);
-                if (pt.transaction_type === 'EXPENSE') openingCashBalance -= parseFloat(pt.amount);
-            }
-        });
-    }
-
-    // 4. Fetch day transactions
+    // 3. Fetch day transactions
     const { data: dayTxns, error: dayError } = await supabaseClient
         .from('daily_transactions')
         .select('*, vendors(name), staff(name)')
@@ -413,18 +396,16 @@ async function buildDailyCashbook(dateKey) {
         .gte('created_at', startOfDay)
         .lte('created_at', endOfDay);
 
-    if (dayError || pastError) {
+    if (dayError) {
         tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-danger fw-bold">Database Error</td></tr>`;
         return;
     }
 
-    // 5. Categorize Data
+    // 4. Categorize Data
     let incCash = [], incUpi = [];
     let expCash = [], expUpi = [];
     let expWage = [];
     
-    let totalCashIn = 0, totalCashOut = 0;
-
     if (dayTxns) {
         dayTxns.forEach(tx => {
             const isSweep = tx.reference_note && (tx.reference_note.includes('Transferred to Master Vault') || tx.reference_note.includes('Automated'));
@@ -440,17 +421,15 @@ async function buildDailyCashbook(dateKey) {
             else if (tx.category === 'finance' && tx.vendors) name = tx.vendors.name;
             else if (tx.category === 'staff' && tx.staff) name = tx.staff.name;
 
-            // Route to buckets
+            // Route to buckets based on the screenshot logic
             if (isIncome) {
-                if (isCash) { incCash.push({name, amt}); totalCashIn += amt; }
-                else { incUpi.push({name, amt}); }
+                if (isCash) incCash.push({name, amt});
+                else incUpi.push({name, amt});
             } else {
                 if (tx.category === 'staff') {
                     expWage.push({name, amt});
-                    if(isCash) totalCashOut += amt;
                 } else if (isCash) {
                     expCash.push({name, amt});
-                    totalCashOut += amt;
                 } else {
                     expUpi.push({name, amt});
                 }
@@ -458,22 +437,19 @@ async function buildDailyCashbook(dateKey) {
         });
     }
 
-    // Final Math
-    const closingCashBalance = openingCashBalance + totalCashIn - totalCashOut;
-
-    // 6. Build HTML
+    // 5. Build HTML (Mobile block-card style exactly matching screenshot)
     let rowsHtml = '';
     
     const generateRow = (name, dr, cr) => {
         const drStr = dr ? dr.toFixed(2) : '-';
         const crStr = cr ? cr.toFixed(2) : '-';
-        const drClass = dr ? 'amt-out' : '';
-        const crClass = cr ? 'amt-in' : '';
+        
+        // Desktop uses tr/td, Mobile uses flex cards via CSS media query override
         return `
-            <tr class="item-row" style="transition: background 0.2s;" onmouseover="this.style.background='#FDFBF7'" onmouseout="this.style.background='transparent'">
+            <tr class="mobile-card-row">
                 <td data-label="Particulars" class="item-indent">${name}</td>
-                <td data-label="Dr (Out)" class="text-end fin-math ${drClass}">${drStr}</td>
-                <td data-label="Cr (In)" class="text-end fin-math ${crClass}">${crStr}</td>
+                <td data-label="Dr (Out)" class="text-end fin-math">${drStr}</td>
+                <td data-label="Cr (In)" class="text-end fin-math">${crStr}</td>
             </tr>
         `;
     };
@@ -493,36 +469,24 @@ async function buildDailyCashbook(dateKey) {
 
     // --- DIGITAL EXPENSE ---
     if (expUpi.length > 0) {
-        rowsHtml += `<tr class="group-header"><td colspan="3">Expense (Digital / Bank)</td></tr>`;
+        rowsHtml += `<tr class="group-header"><td colspan="3">Expense (GPay / Digital)</td></tr>`;
         expUpi.forEach(e => rowsHtml += generateRow(e.name, e.amt, null));
     }
 
     // --- WAGE ---
     if (expWage.length > 0) {
-        rowsHtml += `<tr class="group-header"><td colspan="3">Wage (Staff Payouts)</td></tr>`;
+        rowsHtml += `<tr class="group-header"><td colspan="3">Wage</td></tr>`;
         expWage.forEach(w => rowsHtml += generateRow(w.name, w.amt, null));
     }
 
     if (rowsHtml === '') {
-        rowsHtml = `<tr><td colspan="3" class="text-center py-5 text-muted fw-semibold">No transactions logged.</td></tr>`;
+        rowsHtml = `<tr><td colspan="3" class="text-center py-5 text-muted fw-semibold">No transactions logged for this date.</td></tr>`;
     }
-
-    // --- CLOSING BALANCE ---
-    rowsHtml += `
-        <tr class="closing-row">
-            <td data-label="Status" class="closing-label">Final Drawer Cash Balance</td>
-            <td class="text-end border-0 d-none d-md-table-cell"></td>
-            <td data-label="Balance" class="text-end fin-math closing-amt border-0">₹ ${closingCashBalance.toFixed(2)}</td>
-        </tr>
-    `;
 
     tbody.innerHTML = rowsHtml;
 }
 
 /* ---------- Print / PDF Handlers ---------- */
 async function printCashbook() {
-    const element = document.getElementById('print-area');
-    
-    // Using native print dialog which works flawlessly for standard tabular views
     window.print();
 }
